@@ -1,3 +1,8 @@
+#include <cstdint>
+#include <iostream>
+
+
+using namespace std;
 
 const U64 fileA = 0x8080808080808080ULL;
 const U64 fileB = 0x4040404040404040ULL;
@@ -34,21 +39,29 @@ class Board {
       U64 bQueens;
       U64 wKing;
       U64 bKing;
+
+      U64 wBoard;
+      U64 bBoard;
       Board(){
         //starting positions
-        U64 wPawns   = 0x00ff000000000000ULL;
-        U64 bPawns   = 0x000000000000ff00ULL;
-        U64 wRooks   = 0x8100000000000000ULL;
-        U64 bRooks   = 0x0000000000000081ULL;
-        U64 wBishops = 0x2400000000000000ULL;
-        U64 bBishops = 0x0000000000000024ULL;
-        U64 wKnights = 0x4200000000000000ULL;
-        U64 bKnights = 0x0000000000000042ULL;
-        U64 wQueens  = 0x1000000000000000ULL;
-        U64 bQueens  = 0x0000000000000010ULL;
-        U64 wKing    = 0x0800000000000000ULL;
-        U64 bKing    = 0x0000000000000008ULL;
+        wPawns   = 0x00ff000000000000ULL;
+        bPawns   = 0x000000000000ff00ULL;
+        wRooks   = 0x8100000000000000ULL;
+        bRooks   = 0x0000000000000081ULL;
+        wBishops = 0x2400000000000000ULL;
+        bBishops = 0x0000000000000024ULL;
+        wKnights = 0x4200000000000000ULL;
+        bKnights = 0x0000000000000042ULL;
+        wQueens  = 0x1000000000000000ULL;
+        bQueens  = 0x0000000000000010ULL;
+        wKing    = 0x0800000000000000ULL;
+        bKing    = 0x0000000000000008ULL;
+
+        wBoard   = 0xffff000000000000ULL;
+        bBoard   = 0x000000000000ffffULL;
       }
+      string getChessMove();
+      void setChessMove(string);
 };
 
 #define set_bit(b, i) ((b) |= (1ULL << i))
@@ -61,3 +74,23 @@ int pop_LSB(U64 &b) {
     b &= b - 1;
     return i;
 }
+
+string Board::getChessMove()
+{
+    string move;
+    cout << "Enter your move: ";
+    cin >> move;
+    return move;  
+}
+
+void Board::setChessMove(string move)
+{
+      cout << move << endl;
+}
+
+int main()
+{
+    Board play;
+    play.getChessMove();
+}
+
