@@ -32,7 +32,7 @@ const Bitboard MASK_ANTI_DIAGONAL[15] = {
 	0x2040800000000000, 0x4080000000000000, 0x8000000000000000,
 };
 
-const Bitboard 
+// const Bitboard 
 
 //Prints bitboard, little-endian format
 void print_bitboard(Bitboard b) {

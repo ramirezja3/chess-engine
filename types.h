@@ -7,19 +7,25 @@
 #include <ostream>
 #include <string>
 
-const uint64_t Bitboard;
+typedef uint64_t Bitboard;
 
 const size_t NCOLORS=2;
 enum Color : int {WHITE,BLACK};
 
 //inverts color
-constexpr Color operator~(Color c) { retirn Color(c ^ BLACK);}
+constexpr Color operator~(Color c) { return Color(c ^ BLACK);}
 
 const size_t NDIRS = 8;
 enum Direction : int {
     NORTH = 8, NORTH_EAST = 9, EAST = 1,SOUTH_EAST = -7,
     SOUTH = -8, SOUTH_WEST = -9, WEST = -1, NORTH_WEST = 7,
     NORTH_NORTH = 16, SOUTH_SOUTH = -16
+};
+
+enum Piece : int {
+	WHITE_PAWN, WHITE_KNIGHT, WHITE_BISHOP, WHITE_ROOK, WHITE_QUEEN, WHITE_KING,
+	BLACK_PAWN = 8, BLACK_KNIGHT, BLACK_BISHOP, BLACK_ROOK, BLACK_QUEEN, BLACK_KING,
+	NO_PIECE
 };
 
 const size_t NPIECE_TYPES = 6;
@@ -40,11 +46,6 @@ constexpr Color color_of(Piece pc) {
 }
 
 const size_t NPIECES = 15;
-enum Piece : int {
-	WHITE_PAWN, WHITE_KNIGHT, WHITE_BISHOP, WHITE_ROOK, WHITE_QUEEN, WHITE_KING,
-	BLACK_PAWN = 8, BLACK_KNIGHT, BLACK_BISHOP, BLACK_ROOK, BLACK_QUEEN, BLACK_KING,
-	NO_PIECE
-};
 
 inline Square& operator++(Square& s) { return s = Square(int(s) + 1); }
 constexpr Square operator+(Square s, Direction d) { return Square(int(s) + int(d)); }
@@ -69,7 +70,6 @@ extern const Bitboard MASK_ANTI_DIAGONAL[15];
 extern const Bitboard SQUARE_BB[65];
 
 extern void print_bitboard(Bitboard b);
-
 extern inline int pop_count(Bitboard x);
 extern inline int sparse_pop_count(Bitboard x);
 extern inline Square pop_lsb(Bitboard* b);
