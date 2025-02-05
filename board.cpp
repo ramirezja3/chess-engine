@@ -22,7 +22,7 @@ const U64 rank6 = 0x0000000000ff0000ULL;
 const U64 rank7 = 0x000000000000ff00ULL;
 const U64 rank8 = 0x00000000000000ffULL;
 
-typedef uint64_t U64;
+typedef uint64_t
 
 class Board {
     public:
