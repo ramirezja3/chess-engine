@@ -22,7 +22,7 @@ const U64 rank6 = 0x0000000000ff0000ULL;
 const U64 rank7 = 0x000000000000ff00ULL;
 const U64 rank8 = 0x00000000000000ffULL;
 
-typedef uint64_t U64;
+typedef uint64_t
 
 class Board {
     public:
@@ -39,7 +39,8 @@ class Board {
       U64 bQueens;
       U64 wKing;
       U64 bKing;
-
+      
+      U64 empties;
       U64 wBoard;
       U64 bBoard;
       Board(){
@@ -57,6 +58,7 @@ class Board {
         wKing    = 0x0800000000000000ULL;
         bKing    = 0x0000000000000008ULL;
 
+        empties  = 0x0000ffffffff0000ULL;
         wBoard   = 0xffff000000000000ULL;
         bBoard   = 0x000000000000ffffULL;
       }
@@ -68,6 +70,8 @@ class Board {
 #define get_bit(b, i) ((b) & (1ULL << i))
 #define clear_bit(b, i) ((b) &= ~(1ULL << i))
 #define get_LSB(b) (__builtin_ctzll(b)) //gets number of trailing zeros
+
+#define knightMoves(b) ()
 
 int pop_LSB(U64 &b) {
     int i = get_LSB(b);
