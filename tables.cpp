@@ -177,3 +177,120 @@ Bitboard get_bishop_attacks_for_init(Square square, Bitboard occ) {
 Bitboard BISHOP_ATTACK_MASKS[64];
 int BISHOP_ATTACK_SHIFTS[64];
 Bitboard BISHOP_ATTACKS[64][512];
+
+const Bitboard BISHOP_MAGICS[64] = {
+	0x0002020202020200, 0x0002020202020000, 0x0004010202000000, 0x0004040080000000,
+	0x0001104000000000, 0x0000821040000000, 0x0000410410400000, 0x0000104104104000,
+	0x0000040404040400, 0x0000020202020200, 0x0000040102020000, 0x0000040400800000,
+	0x0000011040000000, 0x0000008210400000, 0x0000004104104000, 0x0000002082082000,
+	0x0004000808080800, 0x0002000404040400, 0x0001000202020200, 0x0000800802004000,
+	0x0000800400A00000, 0x0000200100884000, 0x0000400082082000, 0x0000200041041000,
+	0x0002080010101000, 0x0001040008080800, 0x0000208004010400, 0x0000404004010200,
+	0x0000840000802000, 0x0000404002011000, 0x0000808001041000, 0x0000404000820800,
+	0x0001041000202000, 0x0000820800101000, 0x0000104400080800, 0x0000020080080080,
+	0x0000404040040100, 0x0000808100020100, 0x0001010100020800, 0x0000808080010400,
+	0x0000820820004000, 0x0000410410002000, 0x0000082088001000, 0x0000002011000800,
+	0x0000080100400400, 0x0001010101000200, 0x0002020202000400, 0x0001010101000200,
+	0x0000410410400000, 0x0000208208200000, 0x0000002084100000, 0x0000000020880000,
+	0x0000001002020000, 0x0000040408020000, 0x0004040404040000, 0x0002020202020000,
+	0x0000104104104000, 0x0000002082082000, 0x0000000020841000, 0x0000000000208800,
+	0x0000000010020200, 0x0000000404080200, 0x0000040404040400, 0x0002020202020200
+};
+
+//Initializes the magic lookup table for bishops
+void initialise_bishop_attacks() {
+	Bitboard edges, subset, index;
+
+	for (Square sq = a1; sq <= h8; ++sq) {
+		edges = ((MASK_RANK[AFILE] | MASK_RANK[HFILE]) & ~MASK_RANK[rank_of(sq)]) |
+			((MASK_FILE[AFILE] | MASK_FILE[HFILE]) & ~MASK_FILE[file_of(sq)]);
+		BISHOP_ATTACK_MASKS[sq] = (MASK_DIAGONAL[diagonal_of(sq)]
+			^ MASK_ANTI_DIAGONAL[anti_diagonal_of(sq)]) & ~edges;
+		BISHOP_ATTACK_SHIFTS[sq] = 64 - pop_count(BISHOP_ATTACK_MASKS[sq]);
+
+		subset = 0;
+		do {
+			index = subset;
+			index = index * BISHOP_MAGICS[sq];
+			index = index >> BISHOP_ATTACK_SHIFTS[sq];
+			BISHOP_ATTACKS[sq][index] = get_bishop_attacks_for_init(sq, subset);
+			subset = (subset - BISHOP_ATTACK_MASKS[sq]) & BISHOP_ATTACK_MASKS[sq];
+		} while (subset);
+	}
+}
+
+constexpr Bitboard get_bishop_attacks(Square square, Bitboard occ) {
+	return BISHOP_ATTACKS[square][((occ & BISHOP_ATTACK_MASKS[square]) * BISHOP_MAGICS[square])
+		>> BISHOP_ATTACK_SHIFTS[square]];
+}
+
+//Returns the 'x-ray attacks' for a bishop at a given square. X-ray attacks cover squares that are not immediately
+//accessible by the rook, but become available when the immediate blockers are removed from the board 
+Bitboard get_xray_bishop_attacks(Square square, Bitboard occ, Bitboard blockers) {
+	Bitboard attacks = get_bishop_attacks(square, occ);
+	blockers &= attacks;
+	return attacks ^ get_bishop_attacks(square, occ ^ blockers);
+}
+
+Bitboard SQUARES_BETWEEN_BB[64][64];
+
+//Initializes the lookup table for the bitboard of squares in between two given squares (0 if the 
+//two squares are not aligned)
+void initialise_squares_between() {
+	Bitboard sqs;
+	for (Square sq1 = a1; sq1 <= h8; ++sq1)
+		for (Square sq2 = a1; sq2 <= h8; ++sq2) {
+			sqs = SQUARE_BB[sq1] | SQUARE_BB[sq2];
+			if (file_of(sq1) == file_of(sq2) || rank_of(sq1) == rank_of(sq2))
+				SQUARES_BETWEEN_BB[sq1][sq2] =
+				get_rook_attacks_for_init(sq1, sqs) & get_rook_attacks_for_init(sq2, sqs);
+			else if (diagonal_of(sq1) == diagonal_of(sq2) || anti_diagonal_of(sq1) == anti_diagonal_of(sq2))
+				SQUARES_BETWEEN_BB[sq1][sq2] =
+				get_bishop_attacks_for_init(sq1, sqs) & get_bishop_attacks_for_init(sq2, sqs);
+		}
+}
+
+Bitboard LINE[64][64];
+
+//Initializes the lookup table for the bitboard of all squares along the line of two given squares (0 if the 
+//two squares are not aligned)
+void initialise_line() {
+	for (Square sq1 = a1; sq1 <= h8; ++sq1)
+		for (Square sq2 = a1; sq2 <= h8; ++sq2) {
+			if (file_of(sq1) == file_of(sq2) || rank_of(sq1) == rank_of(sq2))
+				LINE[sq1][sq2] =
+				get_rook_attacks_for_init(sq1, 0) & get_rook_attacks_for_init(sq2, 0)
+				| SQUARE_BB[sq1] | SQUARE_BB[sq2];
+			else if (diagonal_of(sq1) == diagonal_of(sq2) || anti_diagonal_of(sq1) == anti_diagonal_of(sq2))
+				LINE[sq1][sq2] =
+				get_bishop_attacks_for_init(sq1, 0) & get_bishop_attacks_for_init(sq2, 0)
+				| SQUARE_BB[sq1] | SQUARE_BB[sq2];
+		}
+}
+
+Bitboard PAWN_ATTACKS[NCOLORS][NSQUARES];
+Bitboard PSEUDO_LEGAL_ATTACKS[NPIECE_TYPES][NSQUARES];
+
+//Initializes the table containg pseudolegal attacks of each piece for each square. This does not include blockers
+//for sliding pieces
+void initialise_pseudo_legal() {
+	memcpy(PAWN_ATTACKS[WHITE], WHITE_PAWN_ATTACKS, sizeof(WHITE_PAWN_ATTACKS));
+	memcpy(PAWN_ATTACKS[BLACK], BLACK_PAWN_ATTACKS, sizeof(BLACK_PAWN_ATTACKS));
+	memcpy(PSEUDO_LEGAL_ATTACKS[KNIGHT], KNIGHT_ATTACKS, sizeof(KNIGHT_ATTACKS));
+	memcpy(PSEUDO_LEGAL_ATTACKS[KING], KING_ATTACKS, sizeof(KING_ATTACKS));
+	for (Square s = a1; s <= h8; ++s) {
+		PSEUDO_LEGAL_ATTACKS[ROOK][s] = get_rook_attacks_for_init(s, 0);
+		PSEUDO_LEGAL_ATTACKS[BISHOP][s] = get_bishop_attacks_for_init(s, 0);
+		PSEUDO_LEGAL_ATTACKS[QUEEN][s] = PSEUDO_LEGAL_ATTACKS[ROOK][s] |
+			PSEUDO_LEGAL_ATTACKS[BISHOP][s];
+	}
+}
+
+//Initializes lookup tables for rook moves, bishop moves, in-between squares, aligned squares and pseudolegal moves
+void initialise_all_databases() {
+	initialise_rook_attacks();
+	initialise_bishop_attacks();
+	initialise_squares_between();
+	initialise_line();
+	initialise_pseudo_legal();
+}
