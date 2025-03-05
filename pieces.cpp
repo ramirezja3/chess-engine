@@ -1,12 +1,15 @@
 #include <cstdint>
 #include <iostream>
 
-const int pawn = 100;
-const int knight = 320;
-const int bishop = 330;
-const int rook = 500;
-const int queen = 900;
-const int king = 20000;
+// int wPieces[10];
+// int bPieces[10];
+
+const int pawn = 10;
+const int knight = 32;
+const int bishop = 33;
+const int rook = 50;
+const int queen = 90;
+const int king = 200;
 
 const int blackPawnPosition[64] = {
       0,  0,  0,  0,  0,  0,  0,  0 ,
@@ -141,3 +144,56 @@ const int whiteKingPosition[64] = {
      20, 30, 10,  0,  0, 10, 30, 20
 };
 
+int getWhiteEval()
+{
+     //  int pawnTotal = pawn * whitePawnPosition[33] + pawn * whitePawnPosition[43] + pawn * whitePawnPosition[46];
+     //  int knightTotal = knight * whiteKnightPosition[56];
+     //  int kingTotal = king * whiteKingPosition[61];
+     //  int queenTotal = queen * whiteQueenPosition[60];
+     //  int bishopTotal = bishop * whiteBishopPosition[24];
+     //  int total = pawnTotal + knightTotal + kingTotal + queenTotal + bishopTotal;
+
+     int pawnTotal = pawn * whitePawnPosition[40] + pawn * whitePawnPosition[33];
+     int knightTotal = knight * whiteKnightPosition[18];
+     int bishopTotal = bishop * whiteBishopPosition[42];
+     int kingTotal = king * whiteKingPosition[25];
+     int rookTotal = rook * whiteRookPosition[63];
+     int total = pawnTotal + knightTotal + kingTotal + rookTotal + bishopTotal;
+     return total;
+}
+
+int getBlackEval()
+{
+     // int pawnTotal = pawn * blackBishopPosition[13] + pawn * blackPawnPosition[22];
+     // int knightTotal = knight * blackKnightPosition[28];
+     // int kingTotal = king * blackKingPosition[14];
+     // int queenTotal = queen * blackQueenPosition[30];
+     // int bishopTotal = bishop * blackBishopPosition[18];
+     // int total = pawnTotal + knightTotal + kingTotal + queenTotal + bishopTotal;
+
+     int pawnTotal = pawn * blackBishopPosition[29] + pawn * blackPawnPosition[55];
+     int rookTotal = rook * blackRookPosition[44] + rook * blackRookPosition[52];
+     int kingTotal = king * blackKingPosition[22];
+     int total = pawnTotal + kingTotal + rookTotal;
+     return total;
+}
+
+float getEval()
+{
+    float whiteEval = getWhiteEval();
+    float blackEval = getBlackEval();
+
+    if (whiteEval == blackEval) return 0.5f;
+    float advantage = whiteEval / (std::abs(whiteEval) + std::abs(blackEval));
+    return (advantage + 1.0f) / 2.0f;
+}
+
+
+
+int main()
+{
+     std::cout << getWhiteEval() << std::endl;
+     std::cout << getBlackEval() << std::endl;
+     std::cout << getEval() << std::endl;
+     return 0;
+}
