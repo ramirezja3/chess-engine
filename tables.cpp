@@ -110,7 +110,7 @@ Bitboard get_rook_attacks_for_init(Square square, Bitboard occ) {
 
 Bitboard ROOK_ATTACK_MASKS[64];
 int ROOK_ATTACK_SHIFTS[64];
-Bitboard ROOK_ATTACKS[64][4096];
+ Bitboard ROOK_ATTACKS[64][4096];
 
 const Bitboard ROOK_MAGICS[64] = {
 	0x0080001020400080, 0x0040001000200040, 0x0080081000200080, 0x0080040800100080,

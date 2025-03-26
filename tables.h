@@ -47,7 +47,7 @@ constexpr Bitboard attacks(Square s, Bitboard occ) {
 	return P == ROOK ? get_rook_attacks(s, occ) :
 		P == BISHOP ? get_bishop_attacks(s, occ) :
 		P == QUEEN ? attacks<ROOK>(s, occ) | attacks<BISHOP>(s, occ) :
-		PSEUDO_LEGAL_ATTACKS[P][s];
+		PSUEDO_LEGAL_ATTACKS[P][s];
 }
 
 //Returns a bitboard containing all squares that a piece on a square can move to, in the given position
@@ -61,7 +61,7 @@ constexpr Bitboard attacks(PieceType pt, Square s, Bitboard occ) {
 	case QUEEN:
 		return attacks<QUEEN>(s, occ);
 	default:
-		return PSEUDO_LEGAL_ATTACKS[pt][s];
+		return PSUEDO_LEGAL_ATTACKS[pt][s];
 	}
 }
 
