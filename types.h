@@ -47,6 +47,9 @@ constexpr Color color_of(Piece pc) {
 
 const size_t NPIECES = 15;
 
+//PIECE_STR[piece] is the algebraic chess representation of that piece
+const std::string PIECE_STR = "PNBRQK~>pnbrqk.";
+
 inline Square& operator++(Square& s) { return s = Square(int(s) + 1); }
 constexpr Square operator+(Square s, Direction d) { return Square(int(s) + int(d)); }
 constexpr Square operator-(Square s, Direction d) { return Square(int(s) - int(d)); }
