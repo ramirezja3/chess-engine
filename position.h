@@ -29,6 +29,8 @@ class PRNG {
 	}
 };
 
+//Zobrist is a type of hashing for transition tables
+//Used to avoid analyzing the same position more than once
 namespace zobrist {
 	extern uint64_t zobrist_table[NPIECES][NSQUARES];
 	extern void initialise_zobrist_keys();

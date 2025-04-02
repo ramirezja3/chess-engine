@@ -7,6 +7,7 @@
 #include <ostream>
 #include <string>
 
+//basic bitboard, everything is based around this
 typedef uint64_t Bitboard;
 
 const size_t NCOLORS=2;
@@ -22,6 +23,8 @@ enum Direction : int {
     NORTH_NORTH = 16, SOUTH_SOUTH = -16
 };
 
+
+const size_t NPIECES = 15;
 enum Piece : int {
 	WHITE_PAWN, WHITE_KNIGHT, WHITE_BISHOP, WHITE_ROOK, WHITE_QUEEN, WHITE_KING,
 	BLACK_PAWN = 8, BLACK_KNIGHT, BLACK_BISHOP, BLACK_ROOK, BLACK_QUEEN, BLACK_KING,
@@ -32,6 +35,16 @@ const size_t NPIECE_TYPES = 6;
 enum PieceType : int {
     PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
 };
+
+//PIECE_STR[piece] is the algebraic chess representation of that piece
+const std::string PIECE_STR = "PNBRQK~>pnbrqk.";
+
+//FEN of starting Position
+const std::string DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+
+//FEN of kiwipete position.
+//kiwipete used for perft debugging
+const std::string KIWIPETE = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -";
 
 constexpr Piece make_piece(Color c, PieceType pt) {
 	return Piece((c << 3) + pt);
@@ -44,11 +57,6 @@ constexpr PieceType type_of(Piece pc) {
 constexpr Color color_of(Piece pc) {
 	return Color((pc & 0b1000) >> 3);
 }
-
-const size_t NPIECES = 15;
-
-//PIECE_STR[piece] is the algebraic chess representation of that piece
-const std::string PIECE_STR = "PNBRQK~>pnbrqk.";
 
 const size_t NSQUARES = 64;
 enum Square : int {
@@ -118,16 +126,19 @@ constexpr Bitboard shift(Bitboard b) {
         : 0;
 } 
 
+//the rank from a perspective, rank 8 for white is rank 1 for black
 template<Color C>
 constexpr Rank relative_rank(Rank r) {
 	return C == WHITE ? r : Rank(RANK8 - r);
 }
 
+//relative direction, similar to rank
 template<Color C>
 constexpr Direction relative_dir(Direction d) {
 	return Direction(C == WHITE ? d : -d);
 }
 
+//the type of move2
 enum MoveFlags : int {
 	QUIET = 0b0000, DOUBLE_PUSH = 0b0001,
 	OO = 0b0010, OOO = 0b0011,
@@ -214,9 +225,9 @@ class Move {
 	
 	extern std::ostream& operator<<(std::ostream& os, const Move& m);
 	
-	//The white king and kingside rook
+	//The white king and kingside rook castle
 	const Bitboard WHITE_OO_MASK = 0x90;
-	//The white king and queenside rook
+	//The white king and queenside rook castle
 	const Bitboard WHITE_OOO_MASK = 0x11;
 	
 	//Squares between the white king and kingside rook

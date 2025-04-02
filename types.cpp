@@ -66,8 +66,6 @@ const Bitboard SQUARE_BB[65] = {
 	0x0
 };
 
-// const Bitboard 
-
 //Prints bitboard, little-endian format
 void print_bitboard(Bitboard b) {
 	for (int i = 56; i >= 0; i -= 8) {
@@ -78,6 +76,7 @@ void print_bitboard(Bitboard b) {
 	std::cout << "\n";
 }
 
+//for testing
 const Bitboard k1 = 0x5555555555555555;
 const Bitboard k2 = 0x3333333333333333;
 const Bitboard k4 = 0x0f0f0f0f0f0f0f0f;
