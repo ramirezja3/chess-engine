@@ -110,7 +110,7 @@ Bitboard get_rook_attacks_for_init(Square square, Bitboard occ) {
 
 Bitboard ROOK_ATTACK_MASKS[64];
 int ROOK_ATTACK_SHIFTS[64];
- Bitboard ROOK_ATTACKS[64][4096];
+Bitboard ROOK_ATTACKS[64][4096];
 
 const Bitboard ROOK_MAGICS[64] = {
 	0x0080001020400080, 0x0040001000200040, 0x0080081000200080, 0x0080040800100080,
@@ -154,7 +154,7 @@ void initialise_rook_attacks() {
 }
 
 //Returns the attacks bitboard for a rook at a given square, using the magic lookup table
-constexpr Bitboard get_rook_attacks(Square square, Bitboard occ) {
+Bitboard get_rook_attacks(Square square, Bitboard occ) {
 	return ROOK_ATTACKS[square][((occ & ROOK_ATTACK_MASKS[square]) * ROOK_MAGICS[square])
 		>> ROOK_ATTACK_SHIFTS[square]];
 }
@@ -219,7 +219,7 @@ void initialise_bishop_attacks() {
 	}
 }
 
-constexpr Bitboard get_bishop_attacks(Square square, Bitboard occ) {
+Bitboard get_bishop_attacks(Square square, Bitboard occ) {
 	return BISHOP_ATTACKS[square][((occ & BISHOP_ATTACK_MASKS[square]) * BISHOP_MAGICS[square])
 		>> BISHOP_ATTACK_SHIFTS[square]];
 }

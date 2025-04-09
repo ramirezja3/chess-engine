@@ -94,9 +94,20 @@ extern const Bitboard MASK_ANTI_DIAGONAL[15];
 extern const Bitboard SQUARE_BB[65];
 
 extern void print_bitboard(Bitboard b);
-extern inline int pop_count(Bitboard x);
+inline int pop_count(Bitboard x){
+	x = x - ((x >> 1) & 0x5555555555555555ULL);
+    x = (x & 0x3333333333333333ULL) + ((x >> 2) & 0x3333333333333333ULL);
+    x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0fULL;
+    x = (x * 0x0101010101010101ULL) >> 56;
+    return int(x);
+}
 extern inline int sparse_pop_count(Bitboard x);
-extern inline Square pop_lsb(Bitboard* b);
+inline Square pop_lsb(Bitboard* b){
+	Bitboard bb = *b;
+    Square s = Square(__builtin_ctzll(bb)); // or use your own fallback
+    *b &= *b - 1;
+    return s;
+}
 
 extern const int DEBRUIJN64[64];
 extern const Bitboard MAGIC;
