@@ -101,7 +101,15 @@ inline int pop_count(Bitboard x){
     x = (x * 0x0101010101010101ULL) >> 56;
     return int(x);
 }
-extern inline int sparse_pop_count(Bitboard x);
+inline int sparse_pop_count(Bitboard x)
+{
+	int count = 0;
+	while (x) {
+		count++;
+		x &= x - 1;
+	}
+	return count;
+}
 inline Square pop_lsb(Bitboard* b){
 	Bitboard bb = *b;
     Square s = Square(__builtin_ctzll(bb)); // or use your own fallback
@@ -111,7 +119,10 @@ inline Square pop_lsb(Bitboard* b){
 
 extern const int DEBRUIJN64[64];
 extern const Bitboard MAGIC;
-extern constexpr Square bsf(Bitboard b);
+inline constexpr Square bsf(Bitboard b)
+{
+	return Square(__builtin_ctzll(b));
+}
 
 extern const char* SQSTR[65];
 extern const Bitboard k1;

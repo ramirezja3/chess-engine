@@ -91,19 +91,19 @@ const Bitboard kf = 0x0101010101010101;
 // 	return int(x);
 // }
 
-constexpr Square bsf(Bitboard b) {
-    return Square(__builtin_ctzll(b)); // GCC/Clang
-}
+// constexpr Square bsf(Bitboard b) {
+//     return Square(__builtin_ctzll(b)); // GCC/Clang
+// }
 
 //Returns number of set bits in the bitboard. Faster than pop_count(x) when the bitboard has few set bits
-inline int sparse_pop_count(Bitboard x) {
-	int count = 0;
-	while (x) {
-		count++;
-		x &= x - 1;
-	}
-	return count;
-}
+// inline int sparse_pop_count(Bitboard x) {
+// 	int count = 0;
+// 	while (x) {
+// 		count++;
+// 		x &= x - 1;
+// 	}
+// 	return count;
+// }
 
 constexpr int DEBRUIJN64[64] = {
 	0, 47,  1, 56, 48, 27,  2, 60,
@@ -126,9 +126,9 @@ const Bitboard MAGIC = 0x03f79d71b4cb0a89;
 // }
 
 //Returns the index of the least significant bit in the bitboard
-constexpr Square bsf(Bitboard b) {
-	return Square(DEBRUIJN64[MAGIC * (b ^ (b - 1)) >> 58]);
-}
+// constexpr Square bsf(Bitboard b) {
+// 	// return Square(DEBRUIJN64[MAGIC * (b ^ (b - 1)) >> 58]);
+// }
 
 //Returns the representation of the move type in algebraic chess notation. (capture) is used for debugging
 const char* MOVE_TYPESTR[16] = {
