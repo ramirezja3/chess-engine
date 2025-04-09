@@ -235,6 +235,8 @@ Bitboard get_xray_bishop_attacks(Square square, Bitboard occ, Bitboard blockers)
 
 Bitboard SQUARES_BETWEEN_BB[64][64];
 
+Bitboard PSUEDO_LEGAL_ATTACKS[NPIECE_TYPES][NSQUARES];
+
 //Initializes the lookup table for the bitboard of squares in between two given squares (0 if the 
 //two squares are not aligned)
 void initialise_squares_between() {

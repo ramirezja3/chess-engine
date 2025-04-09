@@ -91,6 +91,10 @@ const Bitboard kf = 0x0101010101010101;
 // 	return int(x);
 // }
 
+constexpr Square bsf(Bitboard b) {
+    return Square(__builtin_ctzll(b)); // GCC/Clang
+}
+
 //Returns number of set bits in the bitboard. Faster than pop_count(x) when the bitboard has few set bits
 inline int sparse_pop_count(Bitboard x) {
 	int count = 0;
