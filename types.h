@@ -7,6 +7,7 @@
 #include <ostream>
 #include <string>
 
+//basic bitboard, everything is based around this
 typedef uint64_t Bitboard;
 
 const size_t NCOLORS=2;
@@ -22,6 +23,8 @@ enum Direction : int {
     NORTH_NORTH = 16, SOUTH_SOUTH = -16
 };
 
+
+const size_t NPIECES = 15;
 enum Piece : int {
 	WHITE_PAWN, WHITE_KNIGHT, WHITE_BISHOP, WHITE_ROOK, WHITE_QUEEN, WHITE_KING,
 	BLACK_PAWN = 8, BLACK_KNIGHT, BLACK_BISHOP, BLACK_ROOK, BLACK_QUEEN, BLACK_KING,
@@ -32,6 +35,16 @@ const size_t NPIECE_TYPES = 6;
 enum PieceType : int {
     PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
 };
+
+//PIECE_STR[piece] is the algebraic chess representation of that piece
+const std::string PIECE_STR = "PNBRQK~>pnbrqk.";
+
+//FEN of starting Position
+const std::string DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+
+//FEN of kiwipete position.
+//kiwipete used for perft debugging
+const std::string KIWIPETE = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -";
 
 constexpr Piece make_piece(Color c, PieceType pt) {
 	return Piece((c << 3) + pt);
@@ -45,7 +58,18 @@ constexpr Color color_of(Piece pc) {
 	return Color((pc & 0b1000) >> 3);
 }
 
-const size_t NPIECES = 15;
+const size_t NSQUARES = 64;
+enum Square : int {
+	a1, b1, c1, d1, e1, f1, g1, h1,
+	a2, b2, c2, d2, e2, f2, g2, h2,
+	a3, b3, c3, d3, e3, f3, g3, h3,
+	a4, b4, c4, d4, e4, f4, g4, h4,
+	a5, b5, c5, d5, e5, f5, g5, h5,
+	a6, b6, c6, d6, e6, f6, g6, h6,
+	a7, b7, c7, d7, e7, f7, g7, h7,
+	a8, b8, c8, d8, e8, f8, g8, h8,
+	NO_SQUARE
+};
 
 inline Square& operator++(Square& s) { return s = Square(int(s) + 1); }
 constexpr Square operator+(Square s, Direction d) { return Square(int(s) + int(d)); }
@@ -61,19 +85,6 @@ enum Rank : int {
     RANK1, RANK2, RANK3, RANK4, RANK5, RANK6, RANK7, RANK8
 };
 
-const size_t NSQUARES = 64;
-enum Square : int {
-	a1, b1, c1, d1, e1, f1, g1, h1,
-	a2, b2, c2, d2, e2, f2, g2, h2,
-	a3, b3, c3, d3, e3, f3, g3, h3,
-	a4, b4, c4, d4, e4, f4, g4, h4,
-	a5, b5, c5, d5, e5, f5, g5, h5,
-	a6, b6, c6, d6, e6, f6, g6, h6,
-	a7, b7, c7, d7, e7, f7, g7, h7,
-	a8, b8, c8, d8, e8, f8, g8, h8,
-	NO_SQUARE
-};
-
 extern const char* SQSTR[65];
 
 extern const Bitboard MASK_FILE[8];
@@ -83,13 +94,35 @@ extern const Bitboard MASK_ANTI_DIAGONAL[15];
 extern const Bitboard SQUARE_BB[65];
 
 extern void print_bitboard(Bitboard b);
-extern inline int pop_count(Bitboard x);
-extern inline int sparse_pop_count(Bitboard x);
-extern inline Square pop_lsb(Bitboard* b);
+inline int pop_count(Bitboard x){
+	x = x - ((x >> 1) & 0x5555555555555555ULL);
+    x = (x & 0x3333333333333333ULL) + ((x >> 2) & 0x3333333333333333ULL);
+    x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0fULL;
+    x = (x * 0x0101010101010101ULL) >> 56;
+    return int(x);
+}
+inline int sparse_pop_count(Bitboard x)
+{
+	int count = 0;
+	while (x) {
+		count++;
+		x &= x - 1;
+	}
+	return count;
+}
+inline Square pop_lsb(Bitboard* b){
+	Bitboard bb = *b;
+    Square s = Square(__builtin_ctzll(bb)); // or use your own fallback
+    *b &= *b - 1;
+    return s;
+}
 
 extern const int DEBRUIJN64[64];
 extern const Bitboard MAGIC;
-extern constexpr Square bsf(Bitboard b);
+inline constexpr Square bsf(Bitboard b)
+{
+	return Square(__builtin_ctzll(b));
+}
 
 extern const char* SQSTR[65];
 extern const Bitboard k1;
@@ -115,16 +148,19 @@ constexpr Bitboard shift(Bitboard b) {
         : 0;
 } 
 
+//the rank from a perspective, rank 8 for white is rank 1 for black
 template<Color C>
 constexpr Rank relative_rank(Rank r) {
 	return C == WHITE ? r : Rank(RANK8 - r);
 }
 
+//relative direction, similar to rank
 template<Color C>
 constexpr Direction relative_dir(Direction d) {
 	return Direction(C == WHITE ? d : -d);
 }
 
+//the type of move2
 enum MoveFlags : int {
 	QUIET = 0b0000, DOUBLE_PUSH = 0b0001,
 	OO = 0b0010, OOO = 0b0011,
@@ -211,9 +247,9 @@ class Move {
 	
 	extern std::ostream& operator<<(std::ostream& os, const Move& m);
 	
-	//The white king and kingside rook
+	//The white king and kingside rook castle
 	const Bitboard WHITE_OO_MASK = 0x90;
-	//The white king and queenside rook
+	//The white king and queenside rook castle
 	const Bitboard WHITE_OOO_MASK = 0x11;
 	
 	//Squares between the white king and kingside rook

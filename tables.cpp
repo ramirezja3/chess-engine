@@ -1,5 +1,6 @@
 #include "tables.h"
 #include "types.h"
+#include "cstring"
 #include <iostream>
 
 //A lookup table for king move bitboards
@@ -154,7 +155,7 @@ void initialise_rook_attacks() {
 }
 
 //Returns the attacks bitboard for a rook at a given square, using the magic lookup table
-constexpr Bitboard get_rook_attacks(Square square, Bitboard occ) {
+Bitboard get_rook_attacks(Square square, Bitboard occ) {
 	return ROOK_ATTACKS[square][((occ & ROOK_ATTACK_MASKS[square]) * ROOK_MAGICS[square])
 		>> ROOK_ATTACK_SHIFTS[square]];
 }
@@ -219,7 +220,7 @@ void initialise_bishop_attacks() {
 	}
 }
 
-constexpr Bitboard get_bishop_attacks(Square square, Bitboard occ) {
+Bitboard get_bishop_attacks(Square square, Bitboard occ) {
 	return BISHOP_ATTACKS[square][((occ & BISHOP_ATTACK_MASKS[square]) * BISHOP_MAGICS[square])
 		>> BISHOP_ATTACK_SHIFTS[square]];
 }
@@ -233,6 +234,8 @@ Bitboard get_xray_bishop_attacks(Square square, Bitboard occ, Bitboard blockers)
 }
 
 Bitboard SQUARES_BETWEEN_BB[64][64];
+
+Bitboard PSUEDO_LEGAL_ATTACKS[NPIECE_TYPES][NSQUARES];
 
 //Initializes the lookup table for the bitboard of squares in between two given squares (0 if the 
 //two squares are not aligned)
