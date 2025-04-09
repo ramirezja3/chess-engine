@@ -1,5 +1,6 @@
 #include "tables.h"
 #include "types.h"
+#include "cstring"
 #include <iostream>
 
 //A lookup table for king move bitboards
