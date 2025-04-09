@@ -71,5 +71,7 @@ int main() {
 	initialise_all_databases();
 	zobrist::initialise_zobrist_keys();
 	
+    test_perft();
+
 	return 0;
 }
