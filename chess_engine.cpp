@@ -3,6 +3,7 @@
 #include "tables.h"
 #include "position.h"
 #include "types.h"
+#include "pieces.h"
 
 
 //Computes the perft of the position for a given depth, using bulk-counting
@@ -66,12 +67,54 @@ void test_perft() {
 		<< std::chrono::duration_cast<std::chrono::microseconds>(diff).count() << " [microseconds]\n";
 }
 
+template<Color Us>
+Move find_best_move(Position& pos) {
+    Move moves[256];
+    Move* end = pos.generate_legals<Us>(moves);
+    int best_score = -100000;
+    Move best_move;
+
+    for (Move* m = moves; m != end; ++m) {
+        pos.play<Us>(*m);
+
+        int score = evaluate(pos, Us);  // Pass side perspective
+
+        if (score > best_score) {
+            best_score = score;
+            best_move = *m;
+        }
+
+        pos.undo<Us>(*m);
+    }
+
+    return best_move;
+}
+
+
+std::string getPos(std::string FEN) {
+	std::cout<<"input FEN here"<<std::endl;
+	std::cin>>FEN;
+	
+	return FEN;
+}
+
 int main() {
 	//Make sure to initialise all databases before using the library!
 	initialise_all_databases();
 	zobrist::initialise_zobrist_keys();
 	
+	std::string FEN = DEFAULT_FEN;
+	FEN = getPos(FEN);
+	Position pos;
+	Position::set(FEN, pos);
     test_perft();
+
+	Move best;
+	if(pos.turn() == WHITE) best = find_best_move<WHITE>(pos);
+	else best = find_best_move<BLACK>(pos);
+
+	std::cout << "Best move: " << best.from() << " -> " << best.to() << std::endl;
+    std::cout << "Eval: " << pieces::getEval(pos, pos.turn()) << " (centipawns)\n";
 
 	return 0;
 }
