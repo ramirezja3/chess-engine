@@ -126,7 +126,8 @@ class Position {
         inline Color turn() const { return side_to_play; }
         inline int ply() const { return game_ply; }
         inline uint64_t get_hash() const { return hash; }
-    
+		inline uint64_t zobrist_key() const { return hash; }
+		
         template<Color C> inline Bitboard diagonal_sliders() const;
         template<Color C> inline Bitboard orthogonal_sliders() const;
         template<Color C> inline Bitboard all_pieces() const;
