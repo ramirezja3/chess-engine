@@ -1,201 +1,225 @@
-#include <cstdint>
 #include <iostream>
+#include <string>
+#include <vector>
+#include <chrono>
+#include <unordered_map>
+#include "position.h"
+#include "tables.h"
+#include "types.h"
+#include "pieces.h"
 
-// int wPieces[10];
-// int bPieces[10];
+std::vector<std::string> move_history;
+std::unordered_map<uint64_t, int> repetition_table;
 
-const int pawn = 10;
-const int knight = 32;
-const int bishop = 33;
-const int rook = 50;
-const int queen = 90;
-const int king = 200;
+std::string move_to_algebraic(const Move& m, const Position& pos) {
+    Piece moving_piece = pos.at(m.from());
+    std::string notation;
 
-const double blackPawnPosition[64] = {
-     20, 20, 20, 20, 20, 20, 20, 20,
-     25, 30, 30,  0,  0, 30, 30, 25,
-     25, 15, 10, 20, 20, 10, 15, 25,
-     20, 20, 20, 40, 40, 20, 20, 20,
-     25, 25, 30, 45, 45, 30, 25, 25,
-     30, 30, 40, 50, 50, 40, 30, 30,
-     70, 70, 70, 70, 70, 70, 70, 70,
-     20, 20, 20, 20, 20, 20, 20, 20
-};
+    if (m.flags() == OO) return "O-O";
+    if (m.flags() == OOO) return "O-O-O";
 
-const double whitePawnPosition[64] = {
-     20, 20, 20, 20, 20, 20, 20, 20,
-     70, 70, 70, 70, 70, 70, 70, 70,
-     30, 30, 40, 50, 50, 40, 30, 30,
-     25, 25, 30, 45, 45, 30, 25, 25,
-     20, 20, 20, 40, 40, 20, 20, 20,
-     25, 15, 10, 20, 20, 10, 15, 25,
-     25, 30, 30,  0,  0, 30, 30, 25,
-     20, 20, 20, 20, 20, 20, 20, 20
-};
+    PieceType pt = type_of(moving_piece);
+    if (pt != PAWN) notation += PIECE_STR[moving_piece];
 
-const double blackKnightPosition[64] = {
-      0, 10, 20, 20, 20, 20, 10,  0,
-     10, 30, 50, 55, 55, 50, 30, 10,
-     20, 55, 60, 65, 65, 60, 55, 20,
-     20, 50, 65, 70, 70, 65, 50, 20,
-     20, 55, 65, 70, 70, 65, 55, 20,
-     20, 50, 60, 65, 65, 60, 50, 20,
-     10, 30, 50, 50, 50, 50, 30, 10,
-      0, 10, 20, 20, 20, 20, 10,  0
-};
+    if (pos.at(m.to()) != NO_PIECE || m.flags() == EN_PASSANT) {
+        if (pt == PAWN) notation += SQSTR[m.from()][0];
+        notation += "x";
+    }
 
-const double whiteKnightPosition[64] = {
-      0, 10, 20, 20, 20, 20, 10,  0,
-     10, 30, 50, 50, 50, 50, 30, 10,
-     20, 50, 60, 65, 65, 60, 50, 20,
-     20, 55, 65, 70, 70, 65, 55, 20,
-     20, 50, 65, 70, 70, 65, 50, 20,
-     20, 55, 60, 65, 65, 60, 55, 20,
-     10, 30, 50, 55, 55, 50, 30, 10,
-      0, 10, 20, 20, 20, 20, 10,  0
-};
+    notation += SQSTR[m.to()];
 
-const double blackBishopPosition[64] = {
-      0, 10, 10, 10, 10, 10, 10,  0,
-     10, 25, 20, 20, 20, 20, 25, 10,
-     10, 30, 30, 30, 30, 30, 30, 10,
-     10, 20, 30, 30, 30, 30, 20, 10,
-     10, 25, 25, 30, 30, 25, 25, 10,
-     10, 20, 25, 30, 30, 25, 20, 10,
-     10, 20, 20, 20, 20, 20, 20, 10,
-      0, 10, 10, 10, 10, 10, 10,  0
-};
+    switch (m.flags()) {
+        case PR_QUEEN: case PC_QUEEN: notation += "=Q"; break;
+        case PR_ROOK:  case PC_ROOK:  notation += "=R"; break;
+        case PR_BISHOP:case PC_BISHOP:notation += "=B"; break;
+        case PR_KNIGHT:case PC_KNIGHT:notation += "=N"; break;
+        default: break;
+    }
 
-const double whiteBishopPosition[64] = {
-      0, 10, 10, 10, 10, 10, 10,  0,
-     10, 20, 20, 20, 20, 20, 20, 10,
-     10, 20, 25, 30, 30, 25, 20, 10,
-     10, 25, 25, 30, 30, 25, 25, 10,
-     10, 20, 30, 30, 30, 30, 20, 10,
-     10, 30, 30, 30, 30, 30, 30, 10,
-     10, 25, 20, 20, 20, 20, 25, 10,
-      0, 10, 10, 10, 10, 10, 10,  0
-};
+    Position tmp = pos;
+    if (pos.turn() == WHITE)
+        tmp.play<WHITE>(m);
+    else
+        tmp.play<BLACK>(m);
 
-const double blackRookPosition[64] = {
-      5,  5,  5, 10, 10,  5,  5,  5,
-      0,  5,  5,  5,  5,  5,  5,  0,
-      0,  5,  5,  5,  5,  5,  5,  0,
-      0,  5,  5,  5,  5,  5,  5,  0,
-      0,  5,  5,  5,  5,  5,  5,  0,
-      0,  5,  5,  5,  5,  5,  5,  0,
-     10, 15, 15, 15, 15, 15, 15, 10,
-      5,  5,  5,  5,  5,  5,  5,  5
-};
+    Move dummy[256];
+    if ((tmp.turn() == WHITE && tmp.in_check<WHITE>()) ||
+        (tmp.turn() == BLACK && tmp.in_check<BLACK>())) {
+        auto* end = tmp.turn() == WHITE ? tmp.generate_legals<WHITE>(dummy) : tmp.generate_legals<BLACK>(dummy);
+        notation += (end == dummy) ? "#" : "+";
+    }
 
-const double whiteRookPosition[64] = {
-      5,  5,  5,  5,  5,  5,  5,  5,
-     10, 15, 15, 15, 15, 15, 15, 10,
-      0,  5,  5,  5,  5,  5,  5,  0,
-      0,  5,  5,  5,  5,  5,  5,  0,
-      0,  5,  5,  5,  5,  5,  5,  0,
-      0,  5,  5,  5,  5,  5,  5,  0,
-      0,  5,  5,  5,  5,  5,  5,  0,
-      5,  5,  5, 10, 10,  5,  5,  5
-};
-
-const double blackQueenPosition[64] = {
-      0, 10, 10, 15, 15, 10, 10,  0,
-     10, 20, 20, 20, 20, 20, 20, 10,
-     10, 25, 25, 25, 25, 25, 20, 10,
-     20, 20, 25, 25, 25, 25, 20, 15,
-     15, 20, 25, 25, 25, 25, 20, 15,
-     10, 20, 25, 25, 25, 25, 20, 10,
-     10, 20, 20, 20, 20, 20, 20, 10,
-      0, 10, 10, 15, 15, 10, 10,  0
-};
-
-const double whiteQueenPosition[64] = {
-      0, 10, 10, 15, 15, 10, 10,  0,
-     10, 20, 20, 20, 20, 20, 20, 10,
-     10, 20, 25, 25, 25, 25, 20, 10,
-     15, 20, 25, 25, 25, 25, 20, 15,
-     20, 20, 25, 25, 25, 25, 20, 15,
-     10, 25, 25, 25, 25, 25, 20, 10,
-     10, 20, 20, 20, 20, 20, 20, 10,
-      0, 10, 10, 15, 15, 10, 10,  0
-};
-
-const double blackKingPosition[64] = {
-      50, 60, 40, 30, 30, 40, 60, 50,
-      50, 50, 30, 30, 30, 30, 50, 50,
-      20, 10, 10, 10, 10, 10, 10, 20,
-      10,  0,  0, -10, -10,  0,  0, 10,
-      0, -10, -10, -20, -20, -10, -10,  0,
-      0, -10, -10, -20, -20, -10, -10,  0,
-      0, -10, -10, -20, -20, -10, -10,  0,
-      0, -10, -10, -20, -20, -10, -10,  0
-};
-
-const double whiteKingPosition[64] = {
-      0, -10, -10, -20, -20, -10, -10,  0,
-      0, -10, -10, -20, -20, -10, -10,  0,
-      0, -10, -10, -20, -20, -10, -10,  0,
-      0, -10, -10, -20, -20, -10, -10,  0,
-     10,  0,  0, -10, -10,  0,  0, 10,
-     20, 10, 10, 10, 10, 10, 10, 20,
-     50, 50, 30, 30, 30, 30, 50, 50,
-     50, 60, 40, 30, 30, 40, 60, 50
-};
-
-int getWhiteEval()
-{
-     //  int pawnTotal = pawn * whitePawnPosition[33] + pawn * whitePawnPosition[43] + pawn * whitePawnPosition[46];
-     //  int knightTotal = knight * whiteKnightPosition[56];
-     //  int kingTotal = king * whiteKingPosition[61];
-     //  int queenTotal = queen * whiteQueenPosition[60];
-     //  int bishopTotal = bishop * whiteBishopPosition[24];
-     //  int total = pawnTotal + knightTotal + kingTotal + queenTotal + bishopTotal;
-
-     int pawnTotal = pawn * whitePawnPosition[40] + pawn * whitePawnPosition[33];
-     int knightTotal = knight * whiteKnightPosition[18];
-     int bishopTotal = bishop * whiteBishopPosition[42];
-     int kingTotal = king * whiteKingPosition[25];
-     int rookTotal = rook * whiteRookPosition[63];
-     int total = pawnTotal + knightTotal + kingTotal + rookTotal + bishopTotal;
-     return total;
+    return notation;
 }
 
-int getBlackEval()
-{
-     // int pawnTotal = pawn * blackBishopPosition[13] + pawn * blackPawnPosition[22];
-     // int knightTotal = knight * blackKnightPosition[28];
-     // int kingTotal = king * blackKingPosition[14];
-     // int queenTotal = queen * blackQueenPosition[30];
-     // int bishopTotal = bishop * blackBishopPosition[18];
-     // int total = pawnTotal + knightTotal + kingTotal + queenTotal + bishopTotal;
-
-     int pawnTotal = pawn * blackBishopPosition[29] + pawn * blackPawnPosition[55];
-     int rookTotal = rook * blackRookPosition[44] + rook * blackRookPosition[52];
-     int kingTotal = king * blackKingPosition[22];
-     int total = pawnTotal + kingTotal + rookTotal;
-     return total;
+Move parse_uci(const std::string& str) {
+    if (str.length() < 4) return Move();
+    return Move(str);
 }
 
-double getEval()
-{
-    double whiteEval = getWhiteEval();
-    double blackEval = getBlackEval();
+template<Color C>
+bool is_checkmate_or_stalemate(Position& pos) {
+    Move moves[256];
+    Move* end = pos.generate_legals<C>(moves);
 
-//     if (whiteEval == blackEval) return 0.5f;
-//     float advantage = whiteEval / (std::abs(whiteEval) + std::abs(blackEval));
-//     (advantage + 1.0f) / 2.0f;
-     double advantage = 
-
-    
+    if (end == moves) {
+        if (pos.in_check<C>()) {
+            std::cout << "Checkmate! ";
+            std::cout << (C == WHITE ? "Black" : "White") << " wins.\n";
+        } else {
+            std::cout << "Stalemate! Draw.\n";
+        }
+        return true;
+    }
+    return false;
 }
 
+bool is_insufficient_material(const Position& pos) {
+    int white_material = 0;
+    int black_material = 0;
 
+    for (int pt = PAWN; pt < KING; ++pt) {
+        int w = pop_count(pos.bitboard_of(WHITE, PieceType(pt)));
+        int b = pop_count(pos.bitboard_of(BLACK, PieceType(pt)));
+        white_material += w * piece_value(PieceType(pt));
+        black_material += b * piece_value(PieceType(pt));
+    }
 
-int main()
-{
-     std::cout << getWhiteEval() << std::endl;
-     std::cout << getBlackEval() << std::endl;
-     std::cout << getEval() << std::endl;
-     return 0;
+    if (white_material == 0 && black_material == 0)
+        return true;
+
+    int total_white = pop_count(pos.bitboard_of(WHITE, KNIGHT)) +
+                      pop_count(pos.bitboard_of(WHITE, BISHOP));
+    int total_black = pop_count(pos.bitboard_of(BLACK, KNIGHT)) +
+                      pop_count(pos.bitboard_of(BLACK, BISHOP));
+
+    bool white_ok = white_material == 300 && total_white == 1;
+    bool black_ok = black_material == 300 && total_black == 1;
+
+    return (white_ok && black_material == 0) || (black_ok && white_material == 0);
+}
+
+template<Color Us>
+Move find_best_move(Position& pos) {
+    Move moves[256];
+    Move* end = pos.generate_legals<Us>(moves);
+    int best_score = -1000000;
+    Move best;
+
+    for (Move* m = moves; m != end; ++m) {
+        pos.play<Us>(*m);
+        int score = evaluate(pos, Us);
+        pos.undo<Us>(*m);
+
+        if (score > best_score) {
+            best_score = score;
+            best = *m;
+        }
+    }
+    return best;
+}
+
+bool is_threefold_repetition(uint64_t hash) {
+    return repetition_table[hash] >= 3;
+}
+
+void update_repetition_table(const Position& pos) {
+    ++repetition_table[pos.zobrist_key()];
+}
+
+int main() {
+    initialise_all_databases();
+    zobrist::initialise_zobrist_keys();
+
+    Position pos;
+    Position::set(DEFAULT_FEN, pos);
+    std::cout << pos;
+
+    Color human_side;
+    std::string choice;
+    std::cout << "Play as (w/b)? ";
+    std::cin >> choice;
+    human_side = (choice == "w" || choice == "W") ? WHITE : BLACK;
+
+    update_repetition_table(pos);
+
+    while (true) {
+        std::cout << pos;
+
+        if (is_insufficient_material(pos)) {
+            std::cout << "Draw by insufficient material.\n";
+            break;
+        }
+
+        if (is_threefold_repetition(pos.zobrist_key())) {
+            std::cout << "Draw by threefold repetition.\n";
+            break;
+        }
+
+        bool game_over = pos.turn() == WHITE ?
+            is_checkmate_or_stalemate<WHITE>(pos) :
+            is_checkmate_or_stalemate<BLACK>(pos);
+
+        if (game_over) break;
+
+        if (pos.turn() == human_side) {
+            std::string input;
+            std::cout << "Your move (e.g. e2e4): ";
+            std::cin >> input;
+
+            Move move = parse_uci(input);
+            Move moves[256];
+            Move* end = human_side == WHITE ?
+                pos.generate_legals<WHITE>(moves) :
+                pos.generate_legals<BLACK>(moves);
+
+            bool legal = false;
+            for (Move* m = moves; m != end; ++m) {
+                if (move.to_from() == m->to_from()) {
+                    move = *m;
+                    legal = true;
+                    break;
+                }
+            }
+
+            if (!legal) {
+                std::cout << "Illegal move.\n";
+                continue;
+            }
+
+            if (human_side == WHITE) pos.play<WHITE>(move);
+            else pos.play<BLACK>(move);
+
+            move_history.push_back(move_to_algebraic(move, pos));
+            update_repetition_table(pos);
+        } else {
+            std::cout << "Engine is thinking...\n";
+            auto start = std::chrono::steady_clock::now();
+
+            Move best = pos.turn() == WHITE ?
+                find_best_move<WHITE>(pos) :
+                find_best_move<BLACK>(pos);
+
+            auto end = std::chrono::steady_clock::now();
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+            std::cout << "Engine plays: " << SQSTR[best.from()] << SQSTR[best.to()] << " (" << ms << " ms)\n";
+
+            if (pos.turn() == WHITE) pos.play<WHITE>(best);
+            else pos.play<BLACK>(best);
+
+            move_history.push_back(move_to_algebraic(best, pos));
+            update_repetition_table(pos);
+        }
+
+        std::cout << "\nMove History:\n";
+        for (size_t i = 0; i < move_history.size(); ++i) {
+            if (i % 2 == 0) std::cout << (i / 2 + 1) << ". ";
+            std::cout << move_history[i] << " ";
+            if (i % 2 == 1) std::cout << "\n";
+        }
+        std::cout << "\n";
+    }
+
+    return 0;
 }
