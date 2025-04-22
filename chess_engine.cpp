@@ -10,6 +10,13 @@
 
 std::vector<std::string> move_history;
 std::unordered_map<uint64_t, int> repetition_table;
+bool show_eval = false;
+
+std::string move_to_algebraic(const Move& m, const Position& pos);
+Move parse_uci(const std::string& str);
+void update_repetition_table(const Position& pos);
+bool is_insufficient_material(const Position& pos);
+template<Color C> bool is_checkmate_or_stalemate(Position& pos);
 
 std::string move_to_algebraic(const Move& m, const Position& pos) {
     Piece moving_piece = pos.at(m.from());
@@ -37,10 +44,7 @@ std::string move_to_algebraic(const Move& m, const Position& pos) {
     }
 
     Position tmp = pos;
-    if (pos.turn() == WHITE)
-        tmp.play<WHITE>(m);
-    else
-        tmp.play<BLACK>(m);
+    (pos.turn() == WHITE ? tmp.play<WHITE>(m) : tmp.play<BLACK>(m));
 
     Move dummy[256];
     if ((tmp.turn() == WHITE && tmp.in_check<WHITE>()) ||
@@ -53,8 +57,7 @@ std::string move_to_algebraic(const Move& m, const Position& pos) {
 }
 
 Move parse_uci(const std::string& str) {
-    if (str.length() < 4) return Move();
-    return Move(str);
+    return str.length() < 4 ? Move() : Move(str);
 }
 
 template<Color C>
@@ -64,8 +67,7 @@ bool is_checkmate_or_stalemate(Position& pos) {
 
     if (end == moves) {
         if (pos.in_check<C>()) {
-            std::cout << "Checkmate! ";
-            std::cout << (C == WHITE ? "Black" : "White") << " wins.\n";
+            std::cout << "Checkmate! " << (C == WHITE ? "Black" : "White") << " wins.\n";
         } else {
             std::cout << "Stalemate! Draw.\n";
         }
@@ -75,48 +77,22 @@ bool is_checkmate_or_stalemate(Position& pos) {
 }
 
 bool is_insufficient_material(const Position& pos) {
-    int white_material = 0;
-    int black_material = 0;
+    int wm = 0, bm = 0;
 
     for (int pt = PAWN; pt < KING; ++pt) {
-        int w = pop_count(pos.bitboard_of(WHITE, PieceType(pt)));
-        int b = pop_count(pos.bitboard_of(BLACK, PieceType(pt)));
-        white_material += w * piece_value(PieceType(pt));
-        black_material += b * piece_value(PieceType(pt));
+        wm += pop_count(pos.bitboard_of(WHITE, PieceType(pt))) * piece_value(PieceType(pt));
+        bm += pop_count(pos.bitboard_of(BLACK, PieceType(pt))) * piece_value(PieceType(pt));
     }
 
-    if (white_material == 0 && black_material == 0)
-        return true;
+    if (wm == 0 && bm == 0) return true;
 
-    int total_white = pop_count(pos.bitboard_of(WHITE, KNIGHT)) +
-                      pop_count(pos.bitboard_of(WHITE, BISHOP));
-    int total_black = pop_count(pos.bitboard_of(BLACK, KNIGHT)) +
-                      pop_count(pos.bitboard_of(BLACK, BISHOP));
+    int total_white = pop_count(pos.bitboard_of(WHITE, KNIGHT)) + pop_count(pos.bitboard_of(WHITE, BISHOP));
+    int total_black = pop_count(pos.bitboard_of(BLACK, KNIGHT)) + pop_count(pos.bitboard_of(BLACK, BISHOP));
 
-    bool white_ok = white_material == 300 && total_white == 1;
-    bool black_ok = black_material == 300 && total_black == 1;
+    bool white_ok = wm == 300 && total_white == 1;
+    bool black_ok = bm == 300 && total_black == 1;
 
-    return (white_ok && black_material == 0) || (black_ok && white_material == 0);
-}
-
-template<Color Us>
-Move find_best_move(Position& pos) {
-    Move moves[256];
-    Move* end = pos.generate_legals<Us>(moves);
-    int best_score = -1000000;
-    Move best;
-
-    for (Move* m = moves; m != end; ++m) {
-        pos.play<Us>(*m);
-        int score = evaluate(pos, Us);
-        pos.undo<Us>(*m);
-
-        if (score > best_score) {
-            best_score = score;
-            best = *m;
-        }
-    }
-    return best;
+    return (white_ok && bm == 0) || (black_ok && wm == 0);
 }
 
 bool is_threefold_repetition(uint64_t hash) {
@@ -141,10 +117,19 @@ int main() {
     std::cin >> choice;
     human_side = (choice == "w" || choice == "W") ? WHITE : BLACK;
 
+    std::cout << "Show evaluation after each move? (y/n): ";
+    std::cin >> choice;
+    show_eval = (choice == "y" || choice == "Y");
+
     update_repetition_table(pos);
 
     while (true) {
         std::cout << pos;
+
+        if (show_eval) {
+            int eval = evaluate(pos, WHITE);
+            std::cout << "Current evaluation: " << eval << " (White perspective)\n";
+        }
 
         if (is_insufficient_material(pos)) {
             std::cout << "Draw by insufficient material.\n";
@@ -156,11 +141,10 @@ int main() {
             break;
         }
 
-        bool game_over = pos.turn() == WHITE ?
-            is_checkmate_or_stalemate<WHITE>(pos) :
-            is_checkmate_or_stalemate<BLACK>(pos);
-
-        if (game_over) break;
+        if ((pos.turn() == WHITE && is_checkmate_or_stalemate<WHITE>(pos)) ||
+            (pos.turn() == BLACK && is_checkmate_or_stalemate<BLACK>(pos))) {
+            break;
+        }
 
         if (pos.turn() == human_side) {
             std::string input;
@@ -169,9 +153,7 @@ int main() {
 
             Move move = parse_uci(input);
             Move moves[256];
-            Move* end = human_side == WHITE ?
-                pos.generate_legals<WHITE>(moves) :
-                pos.generate_legals<BLACK>(moves);
+            Move* end = human_side == WHITE ? pos.generate_legals<WHITE>(moves) : pos.generate_legals<BLACK>(moves);
 
             bool legal = false;
             for (Move* m = moves; m != end; ++m) {
@@ -187,27 +169,21 @@ int main() {
                 continue;
             }
 
-            if (human_side == WHITE) pos.play<WHITE>(move);
-            else pos.play<BLACK>(move);
-
+            (human_side == WHITE ? pos.play<WHITE>(move) : pos.play<BLACK>(move));
             move_history.push_back(move_to_algebraic(move, pos));
             update_repetition_table(pos);
         } else {
             std::cout << "Engine is thinking...\n";
             auto start = std::chrono::steady_clock::now();
 
-            Move best = pos.turn() == WHITE ?
-                find_best_move<WHITE>(pos) :
-                find_best_move<BLACK>(pos);
+            Move best = find_best_move_alpha_beta(pos, pos.turn(), 5); // 5-ply search
 
             auto end = std::chrono::steady_clock::now();
             auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
             std::cout << "Engine plays: " << SQSTR[best.from()] << SQSTR[best.to()] << " (" << ms << " ms)\n";
 
-            if (pos.turn() == WHITE) pos.play<WHITE>(best);
-            else pos.play<BLACK>(best);
-
+            (pos.turn() == WHITE ? pos.play<WHITE>(best) : pos.play<BLACK>(best));
             move_history.push_back(move_to_algebraic(best, pos));
             update_repetition_table(pos);
         }
