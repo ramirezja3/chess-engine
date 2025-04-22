@@ -103,6 +103,82 @@ void update_repetition_table(const Position& pos) {
     ++repetition_table[pos.zobrist_key()];
 }
 
+int alpha_beta(Position& pos, int depth, int alpha, int beta, Color side) {
+      if (depth == 0) {
+          return evaluate(pos, side);
+      }
+  
+      Move moves[256];
+      Move* end = (side == WHITE)
+          ? pos.generate_legals<WHITE>(moves)
+          : pos.generate_legals<BLACK>(moves);
+  
+      if (end == moves) {
+          // No legal moves
+          bool check = (side == WHITE) ? pos.in_check<WHITE>() : pos.in_check<BLACK>();
+            if (check) {
+            return -100000 + (3 - depth);
+            }
+            else {
+              // Stalemate
+              return 0;
+          }
+      }
+  
+      int best_score = -1000000;
+  
+      for (Move* m = moves; m != end; ++m) {
+          if (side == WHITE) pos.play<WHITE>(*m);
+          else pos.play<BLACK>(*m);
+  
+          int score = -alpha_beta(pos, depth - 1, -beta, -alpha, Color(~side));
+  
+          if (side == WHITE) pos.undo<WHITE>(*m);
+          else pos.undo<BLACK>(*m);
+  
+          if (score > best_score) {
+              best_score = score;
+          }
+  
+          if (score > alpha) {
+              alpha = score;
+          }
+  
+          if (alpha >= beta) {
+              break; // Beta cutoff
+          }
+      }
+  
+      return best_score;
+  }
+  
+
+Move find_best_move_alpha_beta(Position& pos, Color side, int depth) {
+      Move moves[256];
+      Move* end = (side == WHITE) ? pos.generate_legals<WHITE>(moves) : pos.generate_legals<BLACK>(moves);
+  
+      Move best_move;
+      int best_score = -1000000;
+  
+      for (Move* m = moves; m != end; ++m) {
+          if (side == WHITE) pos.play<WHITE>(*m);
+          else pos.play<BLACK>(*m);
+  
+          int score = -alpha_beta(pos, depth - 1, -1000000, 1000000, Color(~side));
+  
+          if (side == WHITE) pos.undo<WHITE>(*m);
+          else pos.undo<BLACK>(*m);
+  
+          if (score > best_score) {
+              best_score = score;
+              best_move = *m;
+          }
+      }
+  
+      return best_move;
+  }
+  
+
 int main() {
     initialise_all_databases();
     zobrist::initialise_zobrist_keys();
