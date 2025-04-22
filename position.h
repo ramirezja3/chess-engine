@@ -127,7 +127,7 @@ class Position {
         inline int ply() const { return game_ply; }
         inline uint64_t get_hash() const { return hash; }
 		inline uint64_t zobrist_key() const { return hash; }
-		
+
         template<Color C> inline Bitboard diagonal_sliders() const;
         template<Color C> inline Bitboard orthogonal_sliders() const;
         template<Color C> inline Bitboard all_pieces() const;
@@ -141,7 +141,7 @@ class Position {
         template<Color C> void undo(Move m);
     
         template<Color Us>
-        Move *generate_legals(Move* list);
+        Move * generate_legals(Move* list) const;
 };
     
 
@@ -366,7 +366,7 @@ void Position::undo(const Move m) {
 
 //Generates all legal moves in a position for the given side. Advances the move pointer and returns it.
 template<Color Us>
-Move* Position::generate_legals(Move* list) {
+Move* Position::generate_legals(Move* list) const{
 	constexpr Color Them = ~Us;
 
 	const Bitboard us_bb = all_pieces<Us>();
