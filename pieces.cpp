@@ -1,225 +1,131 @@
-#include <iostream>
-#include <string>
-#include <vector>
-#include <chrono>
-#include <unordered_map>
-#include "position.h"
-#include "tables.h"
-#include "types.h"
 #include "pieces.h"
+#include "types.h"
+#include "position.h"
+#include <array>
 
-std::vector<std::string> move_history;
-std::unordered_map<uint64_t, int> repetition_table;
-
-std::string move_to_algebraic(const Move& m, const Position& pos) {
-    Piece moving_piece = pos.at(m.from());
-    std::string notation;
-
-    if (m.flags() == OO) return "O-O";
-    if (m.flags() == OOO) return "O-O-O";
-
-    PieceType pt = type_of(moving_piece);
-    if (pt != PAWN) notation += PIECE_STR[moving_piece];
-
-    if (pos.at(m.to()) != NO_PIECE || m.flags() == EN_PASSANT) {
-        if (pt == PAWN) notation += SQSTR[m.from()][0];
-        notation += "x";
+// Material values
+int piece_value(PieceType pt) {
+    switch (pt) {
+        case PAWN:   return 100;
+        case KNIGHT: return 320;
+        case BISHOP: return 330;
+        case ROOK:   return 500;
+        case QUEEN:  return 900;
+        case KING:   return 10000;
+        default:     return 0;
     }
-
-    notation += SQSTR[m.to()];
-
-    switch (m.flags()) {
-        case PR_QUEEN: case PC_QUEEN: notation += "=Q"; break;
-        case PR_ROOK:  case PC_ROOK:  notation += "=R"; break;
-        case PR_BISHOP:case PC_BISHOP:notation += "=B"; break;
-        case PR_KNIGHT:case PC_KNIGHT:notation += "=N"; break;
-        default: break;
-    }
-
-    Position tmp = pos;
-    if (pos.turn() == WHITE)
-        tmp.play<WHITE>(m);
-    else
-        tmp.play<BLACK>(m);
-
-    Move dummy[256];
-    if ((tmp.turn() == WHITE && tmp.in_check<WHITE>()) ||
-        (tmp.turn() == BLACK && tmp.in_check<BLACK>())) {
-        auto* end = tmp.turn() == WHITE ? tmp.generate_legals<WHITE>(dummy) : tmp.generate_legals<BLACK>(dummy);
-        notation += (end == dummy) ? "#" : "+";
-    }
-
-    return notation;
 }
 
-Move parse_uci(const std::string& str) {
-    if (str.length() < 4) return Move();
-    return Move(str);
-}
-
-template<Color C>
-bool is_checkmate_or_stalemate(Position& pos) {
-    Move moves[256];
-    Move* end = pos.generate_legals<C>(moves);
-
-    if (end == moves) {
-        if (pos.in_check<C>()) {
-            std::cout << "Checkmate! ";
-            std::cout << (C == WHITE ? "Black" : "White") << " wins.\n";
-        } else {
-            std::cout << "Stalemate! Draw.\n";
-        }
-        return true;
+// Piece-square tables for middle game
+static const int PST_MG[6][64] = {
+    // PAWN
+    {
+        0,  0,  0,  0,  0,  0,  0,  0,
+        5, 10, 10,-20,-20, 10, 10,  5,
+        5, -5,-10,  0,  0,-10, -5,  5,
+        0,  0,  0, 20, 20,  0,  0,  0,
+        5,  5, 10,25, 25, 10,  5,  5,
+        10,10,20,30, 30, 20, 10,10,
+        50,50,50,50, 50, 50, 50,50,
+        0,  0,  0,  0,  0,  0,  0,  0
+    },
+    // KNIGHT
+    {
+        -50,-40,-30,-30,-30,-30,-40,-50,
+        -40,-20,  0,  0,  0,  0,-20,-40,
+        -30,  0, 10,15, 15, 10,  0,-30,
+        -30,  5,15,20, 20, 15,  5,-30,
+        -30,  0,15,20, 20, 15,  0,-30,
+        -30,  5,10,15, 15, 10,  5,-30,
+        -40,-20,  0,  5,  5,  0,-20,-40,
+        -50,-40,-30,-30,-30,-30,-40,-50
+    },
+    // BISHOP
+    {
+        -20,-10,-10,-10,-10,-10,-10,-20,
+        -10,  0,  0,  0,  0,  0,  0,-10,
+        -10,  0,  5,10, 10,  5,  0,-10,
+        -10,  5,  5,10, 10,  5,  5,-10,
+        -10,  0,10,10, 10, 10,  0,-10,
+        -10,10,10,10, 10, 10, 10,-10,
+        -10,  5,  0,  0,  0,  0,  5,-10,
+        -20,-10,-10,-10,-10,-10,-10,-20
+    },
+    // ROOK
+    {
+         0,  0,  0,  5,  5,  0,  0,  0,
+        -5,  0,  0,  0,  0,  0,  0, -5,
+        -5,  0,  0,  0,  0,  0,  0, -5,
+        -5,  0,  0,  0,  0,  0,  0, -5,
+        -5,  0,  0,  0,  0,  0,  0, -5,
+        -5,  0,  0,  0,  0,  0,  0, -5,
+         5, 10, 10, 10, 10, 10, 10,  5,
+         0,  0,  0,  0,  0,  0,  0,  0
+    },
+    // QUEEN
+    {
+        -20,-10,-10, -5, -5,-10,-10,-20,
+        -10,  0,  0,  0,  0,  0,  0,-10,
+        -10,  0,  5,  5,  5,  5,  0,-10,
+         -5,  0,  5,  5,  5,  5,  0, -5,
+          0,  0,  5,  5,  5,  5,  0, -5,
+        -10,  5,  5,  5,  5,  5,  0,-10,
+        -10,  0,  5,  0,  0,  0,  0,-10,
+        -20,-10,-10, -5, -5,-10,-10,-20
+    },
+    // KING (middle game)
+    {
+        -30,-40,-40,-50,-50,-40,-40,-30,
+        -30,-40,-40,-50,-50,-40,-40,-30,
+        -30,-40,-40,-50,-50,-40,-40,-30,
+        -30,-40,-40,-50,-50,-40,-40,-30,
+        -20,-30,-30,-40,-40,-30,-30,-20,
+        -10,-20,-20,-20,-20,-20,-20,-10,
+         20, 20,  0,  0,  0,  0, 20, 20,
+         20, 30, 10,  0,  0, 10, 30, 20
     }
-    return false;
-}
+};
 
-bool is_insufficient_material(const Position& pos) {
-    int white_material = 0;
-    int black_material = 0;
+// King endgame table
+static const int PST_EG_KING[64] = {
+    -50,-30,-30,-30,-30,-30,-30,-50,
+    -30,-10,-10,-10,-10,-10,-10,-30,
+    -30,-10, 20, 20, 20, 20,-10,-30,
+    -30,-10, 20, 30, 30, 20,-10,-30,
+    -30,-10, 20, 30, 30, 20,-10,-30,
+    -30,-10, 20, 20, 20, 20,-10,-30,
+    -30,-30,  0,  0,  0,  0,-30,-30,
+    -50,-30,-30,-30,-30,-30,-30,-50
+};
+
+int evaluate(const Position& pos, Color perspective) {
+    int score = 0;
+    int total_material = 0;
 
     for (int pt = PAWN; pt < KING; ++pt) {
-        int w = pop_count(pos.bitboard_of(WHITE, PieceType(pt)));
-        int b = pop_count(pos.bitboard_of(BLACK, PieceType(pt)));
-        white_material += w * piece_value(PieceType(pt));
-        black_material += b * piece_value(PieceType(pt));
+        int wm = pop_count(pos.bitboard_of(WHITE, PieceType(pt))) * piece_value(PieceType(pt));
+        int bm = pop_count(pos.bitboard_of(BLACK, PieceType(pt))) * piece_value(PieceType(pt));
+        total_material += wm + bm;
     }
 
-    if (white_material == 0 && black_material == 0)
-        return true;
+    bool endgame = total_material <= 2400;
 
-    int total_white = pop_count(pos.bitboard_of(WHITE, KNIGHT)) +
-                      pop_count(pos.bitboard_of(WHITE, BISHOP));
-    int total_black = pop_count(pos.bitboard_of(BLACK, KNIGHT)) +
-                      pop_count(pos.bitboard_of(BLACK, BISHOP));
+    for (int pt = PAWN; pt <= KING; ++pt) {
+        Bitboard w_bb = pos.bitboard_of(WHITE, PieceType(pt));
+        Bitboard b_bb = pos.bitboard_of(BLACK, PieceType(pt));
 
-    bool white_ok = white_material == 300 && total_white == 1;
-    bool black_ok = black_material == 300 && total_black == 1;
+        while (w_bb) {
+            Square sq = pop_lsb(&w_bb);
+            score += piece_value(PieceType(pt));
+            score += (pt == KING && endgame ? PST_EG_KING[sq] : PST_MG[pt][sq]);
+        }
 
-    return (white_ok && black_material == 0) || (black_ok && white_material == 0);
-}
-
-template<Color Us>
-Move find_best_move(Position& pos) {
-    Move moves[256];
-    Move* end = pos.generate_legals<Us>(moves);
-    int best_score = -1000000;
-    Move best;
-
-    for (Move* m = moves; m != end; ++m) {
-        pos.play<Us>(*m);
-        int score = evaluate(pos, Us);
-        pos.undo<Us>(*m);
-
-        if (score > best_score) {
-            best_score = score;
-            best = *m;
+        while (b_bb) {
+            Square sq = pop_lsb(&b_bb);
+            score -= piece_value(PieceType(pt));
+            score -= (pt == KING && endgame ? PST_EG_KING[sq ^ 56] : PST_MG[pt][sq ^ 56]);
         }
     }
-    return best;
-}
 
-bool is_threefold_repetition(uint64_t hash) {
-    return repetition_table[hash] >= 3;
-}
-
-void update_repetition_table(const Position& pos) {
-    ++repetition_table[pos.zobrist_key()];
-}
-
-int main() {
-    initialise_all_databases();
-    zobrist::initialise_zobrist_keys();
-
-    Position pos;
-    Position::set(DEFAULT_FEN, pos);
-    std::cout << pos;
-
-    Color human_side;
-    std::string choice;
-    std::cout << "Play as (w/b)? ";
-    std::cin >> choice;
-    human_side = (choice == "w" || choice == "W") ? WHITE : BLACK;
-
-    update_repetition_table(pos);
-
-    while (true) {
-        std::cout << pos;
-
-        if (is_insufficient_material(pos)) {
-            std::cout << "Draw by insufficient material.\n";
-            break;
-        }
-
-        if (is_threefold_repetition(pos.zobrist_key())) {
-            std::cout << "Draw by threefold repetition.\n";
-            break;
-        }
-
-        bool game_over = pos.turn() == WHITE ?
-            is_checkmate_or_stalemate<WHITE>(pos) :
-            is_checkmate_or_stalemate<BLACK>(pos);
-
-        if (game_over) break;
-
-        if (pos.turn() == human_side) {
-            std::string input;
-            std::cout << "Your move (e.g. e2e4): ";
-            std::cin >> input;
-
-            Move move = parse_uci(input);
-            Move moves[256];
-            Move* end = human_side == WHITE ?
-                pos.generate_legals<WHITE>(moves) :
-                pos.generate_legals<BLACK>(moves);
-
-            bool legal = false;
-            for (Move* m = moves; m != end; ++m) {
-                if (move.to_from() == m->to_from()) {
-                    move = *m;
-                    legal = true;
-                    break;
-                }
-            }
-
-            if (!legal) {
-                std::cout << "Illegal move.\n";
-                continue;
-            }
-
-            if (human_side == WHITE) pos.play<WHITE>(move);
-            else pos.play<BLACK>(move);
-
-            move_history.push_back(move_to_algebraic(move, pos));
-            update_repetition_table(pos);
-        } else {
-            std::cout << "Engine is thinking...\n";
-            auto start = std::chrono::steady_clock::now();
-
-            Move best = pos.turn() == WHITE ?
-                find_best_move<WHITE>(pos) :
-                find_best_move<BLACK>(pos);
-
-            auto end = std::chrono::steady_clock::now();
-            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-
-            std::cout << "Engine plays: " << SQSTR[best.from()] << SQSTR[best.to()] << " (" << ms << " ms)\n";
-
-            if (pos.turn() == WHITE) pos.play<WHITE>(best);
-            else pos.play<BLACK>(best);
-
-            move_history.push_back(move_to_algebraic(best, pos));
-            update_repetition_table(pos);
-        }
-
-        std::cout << "\nMove History:\n";
-        for (size_t i = 0; i < move_history.size(); ++i) {
-            if (i % 2 == 0) std::cout << (i / 2 + 1) << ". ";
-            std::cout << move_history[i] << " ";
-            if (i % 2 == 1) std::cout << "\n";
-        }
-        std::cout << "\n";
-    }
-
-    return 0;
+    return (perspective == WHITE) ? score : -score;
 }
