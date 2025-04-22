@@ -2,12 +2,14 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <unordered_map>
 #include "position.h"
 #include "tables.h"
 #include "types.h"
-#include "pieces.h" // Assume evaluate() and piece_value() come from here
+#include "pieces.h"
 
 std::vector<std::string> move_history;
+std::unordered_map<uint64_t, int> repetition_table;
 
 std::string move_to_algebraic(const Move& m, const Position& pos) {
     Piece moving_piece = pos.at(m.from());
@@ -117,6 +119,14 @@ Move find_best_move(Position& pos) {
     return best;
 }
 
+bool is_threefold_repetition(uint64_t hash) {
+    return repetition_table[hash] >= 3;
+}
+
+void update_repetition_table(const Position& pos) {
+    ++repetition_table[pos.zobrist_key()];
+}
+
 int main() {
     initialise_all_databases();
     zobrist::initialise_zobrist_keys();
@@ -131,11 +141,18 @@ int main() {
     std::cin >> choice;
     human_side = (choice == "w" || choice == "W") ? WHITE : BLACK;
 
+    update_repetition_table(pos);
+
     while (true) {
         std::cout << pos;
 
         if (is_insufficient_material(pos)) {
             std::cout << "Draw by insufficient material.\n";
+            break;
+        }
+
+        if (is_threefold_repetition(pos.zobrist_key())) {
+            std::cout << "Draw by threefold repetition.\n";
             break;
         }
 
@@ -174,6 +191,7 @@ int main() {
             else pos.play<BLACK>(move);
 
             move_history.push_back(move_to_algebraic(move, pos));
+            update_repetition_table(pos);
         } else {
             std::cout << "Engine is thinking...\n";
             auto start = std::chrono::steady_clock::now();
@@ -191,6 +209,7 @@ int main() {
             else pos.play<BLACK>(best);
 
             move_history.push_back(move_to_algebraic(best, pos));
+            update_repetition_table(pos);
         }
 
         std::cout << "\nMove History:\n";
