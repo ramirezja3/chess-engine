@@ -33,7 +33,7 @@ extern Bitboard get_xray_bishop_attacks(Square square, Bitboard occ, Bitboard bl
 extern Bitboard SQUARES_BETWEEN_BB[NSQUARES][NSQUARES];
 extern Bitboard LINE[NSQUARES][NSQUARES];
 extern Bitboard PAWN_ATTACKS[NCOLORS][NSQUARES];
-extern Bitboard PSUEDO_LEGAL_ATTACKS[NPIECE_TYPES][NSQUARES];
+extern Bitboard PSEUDO_LEGAL_ATTACKS[NPIECE_TYPES][NSQUARES];
 
 extern void initialise_squares_between();
 extern void initialise_line();
@@ -47,7 +47,7 @@ constexpr Bitboard attacks(Square s, Bitboard occ) {
 	return P == ROOK ? get_rook_attacks(s, occ) :
 		P == BISHOP ? get_bishop_attacks(s, occ) :
 		P == QUEEN ? attacks<ROOK>(s, occ) | attacks<BISHOP>(s, occ) :
-		PSUEDO_LEGAL_ATTACKS[P][s];
+		PSEUDO_LEGAL_ATTACKS[P][s];
 }
 
 //Returns a bitboard containing all squares that a piece on a square can move to, in the given position
@@ -61,7 +61,7 @@ constexpr Bitboard attacks(PieceType pt, Square s, Bitboard occ) {
 	case QUEEN:
 		return attacks<QUEEN>(s, occ);
 	default:
-		return PSUEDO_LEGAL_ATTACKS[pt][s];
+		return PSEUDO_LEGAL_ATTACKS[pt][s];
 	}
 }
 

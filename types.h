@@ -197,9 +197,9 @@ class Move {
 		}
 	
 		inline Square to() const { return Square(move & 0x3f); }
+        inline uint16_t to_from() const { return move & 0xFFF; }
 		inline Square from() const { return Square((move >> 6) & 0x3f); }
-		inline int to_from() const { return move & 0xffff; }
-		inline MoveFlags flags() const { return MoveFlags((move >> 12) & 0xf); }
+				inline MoveFlags flags() const { return MoveFlags((move >> 12) & 0xf); }
 	
 		inline bool is_capture() const {
 			return (move >> 12) & CAPTURES;

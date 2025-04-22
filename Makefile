@@ -1,21 +1,32 @@
-# Compiler and flags
-CXX = g++
-CXXFLAGS = -std=c++17 -Wall -O2
+CXX := g++
+CXXFLAGS := -std=c++17 -O2 -Wall -Wextra
+LDFLAGS :=
 
-# Source files
-SRCS = chess_engine.cpp position.cpp tables.cpp types.cpp
+SRC := \
+	chess_engine.cpp \
+	pieces.cpp \
+	position.cpp \
+	tables.cpp \
+	types.cpp
 
-# Header dependencies (not compiled, just for reference)
-HDRS = position.h tables.h types.h
+TEST := test.cpp
 
-# Output binary
-TARGET = chess_engine
+OBJ := $(SRC:.cpp=.o)
+BIN := chess_engine
+TEST_BIN := test_engine
 
-# Build rules
-all: $(TARGET)
+all: $(BIN)
 
-$(TARGET): $(SRCS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SRCS)
+$(BIN): $(OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+test: $(SRC) $(TEST)
+	$(CXX) $(CXXFLAGS) -o $(TEST_BIN) $(SRC) $(TEST)
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(OBJ) $(BIN) $(TEST_BIN)
+
+.PHONY: all clean test
