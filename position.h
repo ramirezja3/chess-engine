@@ -141,7 +141,7 @@ class Position {
         template<Color C> void undo(Move m);
     
         template<Color Us>
-        Move * generate_legals(Move* list) const;
+        Move * generate_legals(Move* list);
 };
     
 
@@ -366,7 +366,7 @@ void Position::undo(const Move m) {
 
 //Generates all legal moves in a position for the given side. Advances the move pointer and returns it.
 template<Color Us>
-Move* Position::generate_legals(Move* list) const{
+Move* Position::generate_legals(Move* list){
 	constexpr Color Them = ~Us;
 
 	const Bitboard us_bb = all_pieces<Us>();
