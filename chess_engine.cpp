@@ -188,13 +188,14 @@ int main() {
             update_repetition_table(pos);
         }
 
-        std::cout << "\nMove History:\n";
+        /*std::cout << "\nMove History:\n";
         for (size_t i = 0; i < move_history.size(); ++i) {
             if (i % 2 == 0) std::cout << (i / 2 + 1) << ". ";
             std::cout << move_history[i] << " ";
             if (i % 2 == 1) std::cout << "\n";
         }
         std::cout << "\n";
+        */
     }
 
     return 0;
