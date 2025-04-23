@@ -1,32 +1,23 @@
-CXX := g++
-CXXFLAGS := -std=c++17 -O2 -Wall -Wextra
-LDFLAGS :=
+CXX = g++
+CXXFLAGS = -O2 -std=c++17 -Wall -Wextra -Wno-unknown-pragmas -Wno-reorder
 
-SRC := \
-	chess_engine.cpp \
-	pieces.cpp \
-	position.cpp \
-	tables.cpp \
-	types.cpp
+SRC = \
+    chess_engine.cpp \
+    pieces.cpp \
+    position.cpp \
+    tables.cpp \
+    types.cpp
 
-TEST := test.cpp
+OBJ = $(SRC:.cpp=.o)
+TARGET = chess_engine
 
-OBJ := $(SRC:.cpp=.o)
-BIN := chess_engine
-TEST_BIN := test_engine
+all: $(TARGET)
 
-all: $(BIN)
-
-$(BIN): $(OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+$(TARGET): $(OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $^
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-test: $(SRC) $(TEST)
-	$(CXX) $(CXXFLAGS) -o $(TEST_BIN) $(SRC) $(TEST)
-
 clean:
-	rm -f $(OBJ) $(BIN) $(TEST_BIN)
-
-.PHONY: all clean test
+	rm -f $(OBJ) $(TARGET)

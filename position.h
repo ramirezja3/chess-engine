@@ -49,11 +49,13 @@ struct UndoInfo {
 	//double pushed on the previous move
 	Square epsq;
 
-	constexpr UndoInfo() : entry(0), captured(NO_PIECE), epsq(NO_SQUARE) {}
+	UndoInfo() : entry(0), captured(NO_PIECE), epsq(NO_SQUARE) {}
 	
 	//This preserves the entry bitboard across moves
 	UndoInfo(const UndoInfo& prev) : 
 		entry(prev.entry), captured(NO_PIECE), epsq(NO_SQUARE) {}
+
+	UndoInfo& operator=(const UndoInfo& other) = default;
 };
 
 class Position {
@@ -423,13 +425,13 @@ Move* Position::generate_legals(Move* list){
 	//Checkers of each piece type are identified by:
 	//1. Projecting attacks FROM the king square
 	//2. Intersecting this bitboard with the enemy bitboard of that piece type
-	checkers = attacks<KNIGHT>(our_king, all) & bitboard_of(Them, KNIGHT)
-		| pawn_attacks<Us>(our_king) & bitboard_of(Them, PAWN);
+	checkers = (attacks<KNIGHT>(our_king, all) & bitboard_of(Them, KNIGHT))
+		| (pawn_attacks<Us>(our_king) & bitboard_of(Them, PAWN));
 	
 	//Here, we identify slider checkers and pinners simultaneously, and candidates for such pinners 
 	//and checkers are represented by the bitboard <candidates>
-	Bitboard candidates = attacks<ROOK>(our_king, them_bb) & their_orth_sliders
-		| attacks<BISHOP>(our_king, them_bb) & their_diag_sliders;
+	Bitboard candidates = (attacks<ROOK>(our_king, them_bb) & their_orth_sliders)
+		| (attacks<BISHOP>(our_king, them_bb) & their_diag_sliders);
 
 	pinned = 0;
 	while (candidates) {
@@ -440,7 +442,7 @@ Move* Position::generate_legals(Move* list){
 		//If not, add the slider to the checker bitboard
 		if (b1 == 0) checkers ^= SQUARE_BB[s];
 		//If there is only one of our pieces between them, add our piece to the pinned bitboard 
-		else if ((b1 & b1 - 1) == 0) pinned ^= b1;
+		else if ((b1 & (b1 - 1)) == 0) pinned ^= b1;
 	}
 
 	//This makes it easier to mask pieces
@@ -464,6 +466,7 @@ Move* Position::generate_legals(Move* list){
 				b1 = pawn_attacks<Them>(history[game_ply].epsq) & bitboard_of(Us, PAWN) & not_pinned;
 				while (b1) *list++ = Move(pop_lsb(&b1), history[game_ply].epsq, EN_PASSANT);
 			}
+			[[fallthrough]];
 			//FALL THROUGH INTENTIONAL
 		case make_piece(Them, KNIGHT):
 			//If the checker is either a pawn or a knight, the only legal moves are to capture

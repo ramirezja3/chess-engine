@@ -195,6 +195,8 @@ class Move {
 			this->move = (create_square(File(move[0] - 'a'), Rank(move[1] - '1')) << 6) |
 				create_square(File(move[2] - 'a'), Rank(move[3] - '1'));
 		}
+
+		Move& operator=(const Move& other) = default;
 	
 		inline Square to() const { return Square(move & 0x3f); }
         inline uint16_t to_from() const { return move & 0xFFF; }
@@ -205,7 +207,6 @@ class Move {
 			return (move >> 12) & CAPTURES;
 		}
 	
-		void operator=(Move m) { move = m.move; }
 		bool operator==(Move a) const { return to_from() == a.to_from(); }
 		bool operator!=(Move a) const { return to_from() != a.to_from(); }
 	};

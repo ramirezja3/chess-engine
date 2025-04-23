@@ -100,7 +100,7 @@ static const int PST_EG_KING[64] = {
 };
 
 // --- Evaluation ---
-int evaluate(const Position& pos, Color perspective) {
+int evaluate(Position& pos, Color perspective) {
     int score = 0;
     int total_material = 0;
 
