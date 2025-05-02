@@ -178,7 +178,6 @@ inline Bitboard Position::attackers_from(Square s, Bitboard occ) const {
 		(attacks<KNIGHT>(s, occ) & piece_bb[WHITE_KNIGHT]) |
 		(attacks<BISHOP>(s, occ) & (piece_bb[WHITE_BISHOP] | piece_bb[WHITE_QUEEN])) |
 		(attacks<ROOK>(s, occ) & (piece_bb[WHITE_ROOK] | piece_bb[WHITE_QUEEN])) :
-
 		(pawn_attacks<WHITE>(s) & piece_bb[BLACK_PAWN]) |
 		(attacks<KNIGHT>(s, occ) & piece_bb[BLACK_KNIGHT]) |
 		(attacks<BISHOP>(s, occ) & (piece_bb[BLACK_BISHOP] | piece_bb[BLACK_QUEEN])) |
@@ -368,325 +367,204 @@ void Position::undo(const Move m) {
 
 //Generates all legal moves in a position for the given side. Advances the move pointer and returns it.
 template<Color Us>
-Move* Position::generate_legals(Move* list){
-	constexpr Color Them = ~Us;
+Move* Position::generate_legals(Move* list) {
+    constexpr Color Them = ~Us;
 
-	const Bitboard us_bb = all_pieces<Us>();
-	const Bitboard them_bb = all_pieces<Them>();
-	const Bitboard all = us_bb | them_bb;
+    const Bitboard us_bb = all_pieces<Us>();
+    const Bitboard them_bb = all_pieces<Them>();
+    const Bitboard all = us_bb | them_bb;
 
-	const Square our_king = bsf(bitboard_of(Us, KING));
-	const Square their_king = bsf(bitboard_of(Them, KING));
+    const Square our_king = bsf(bitboard_of(Us, KING));
+    const Square their_king = bsf(bitboard_of(Them, KING));
 
-	const Bitboard our_diag_sliders = diagonal_sliders<Us>();
-	const Bitboard their_diag_sliders = diagonal_sliders<Them>();
-	const Bitboard our_orth_sliders = orthogonal_sliders<Us>();
-	const Bitboard their_orth_sliders = orthogonal_sliders<Them>();
+    //const Bitboard our_diag_sliders = diagonal_sliders<Us>();
+    const Bitboard their_diag_sliders = diagonal_sliders<Them>();
+    //const Bitboard our_orth_sliders = orthogonal_sliders<Us>();
+    const Bitboard their_orth_sliders = orthogonal_sliders<Them>();
 
-	//General purpose bitboards for attacks, masks, etc.
-	Bitboard b1, b2, b3;
-	
-	//Squares that our king cannot move to
-	Bitboard danger = 0;
+    // General purpose bitboards
+    Bitboard b1;
 
-	//For each enemy piece, add all of its attacks to the danger bitboard
-	danger |= pawn_attacks<Them>(bitboard_of(Them, PAWN)) | attacks<KING>(their_king, all);
-	
-	b1 = bitboard_of(Them, KNIGHT); 
-	while (b1) danger |= attacks<KNIGHT>(pop_lsb(&b1), all);
-	
-	b1 = their_diag_sliders;
-	//all ^ SQUARE_BB[our_king] is written to prevent the king from moving to squares which are 'x-rayed'
-	//by enemy bishops and queens
-	while (b1) danger |= attacks<BISHOP>(pop_lsb(&b1), all ^ SQUARE_BB[our_king]);
-	
-	b1 = their_orth_sliders;
-	//all ^ SQUARE_BB[our_king] is written to prevent the king from moving to squares which are 'x-rayed'
-	//by enemy rooks and queens
-	while (b1) danger |= attacks<ROOK>(pop_lsb(&b1), all ^ SQUARE_BB[our_king]);
+    // Build danger squares
+    Bitboard danger = 0;
+    danger |= pawn_attacks<Them>(bitboard_of(Them, PAWN)) | attacks<KING>(their_king, all);
 
-	//The king can move to all of its surrounding squares, except ones that are attacked, and
-	//ones that have our own pieces on them
-	b1 = attacks<KING>(our_king, all) & ~(us_bb | danger);
-	list = make<QUIET>(our_king, b1 & ~them_bb, list);
-	list = make<CAPTURE>(our_king, b1 & them_bb, list);
+    b1 = bitboard_of(Them, KNIGHT);
+    while (b1) danger |= attacks<KNIGHT>(pop_lsb(&b1), all);
 
-	//The capture mask filters destination squares to those that contain an enemy piece that is checking the 
-	//king and must be captured
-	Bitboard capture_mask;
-	
-	//The quiet mask filter destination squares to those where pieces must be moved to block an incoming attack 
-	//to the king
-	Bitboard quiet_mask;
-	
-	//A general purpose square for storing destinations, etc.
-	Square s;
+    b1 = their_diag_sliders;
+    while (b1) danger |= attacks<BISHOP>(pop_lsb(&b1), all ^ SQUARE_BB[our_king]);
 
-	//Checkers of each piece type are identified by:
-	//1. Projecting attacks FROM the king square
-	//2. Intersecting this bitboard with the enemy bitboard of that piece type
-	checkers = (attacks<KNIGHT>(our_king, all) & bitboard_of(Them, KNIGHT))
-		| (pawn_attacks<Us>(our_king) & bitboard_of(Them, PAWN));
-	
-	//Here, we identify slider checkers and pinners simultaneously, and candidates for such pinners 
-	//and checkers are represented by the bitboard <candidates>
-	Bitboard candidates = (attacks<ROOK>(our_king, them_bb) & their_orth_sliders)
-		| (attacks<BISHOP>(our_king, them_bb) & their_diag_sliders);
+    b1 = their_orth_sliders;
+    while (b1) danger |= attacks<ROOK>(pop_lsb(&b1), all ^ SQUARE_BB[our_king]);
 
-	pinned = 0;
-	while (candidates) {
-		s = pop_lsb(&candidates);
-		b1 = SQUARES_BETWEEN_BB[our_king][s] & us_bb;
-		
-		//Do the squares in between the enemy slider and our king contain any of our pieces?
-		//If not, add the slider to the checker bitboard
-		if (b1 == 0) checkers ^= SQUARE_BB[s];
-		//If there is only one of our pieces between them, add our piece to the pinned bitboard 
-		else if ((b1 & (b1 - 1)) == 0) pinned ^= b1;
-	}
+    // King moves first
+    b1 = attacks<KING>(our_king, all) & ~(us_bb | danger);
+    list = make<QUIET>(our_king, b1 & ~them_bb, list);
+    list = make<CAPTURE>(our_king, b1 & them_bb, list);
 
-	//This makes it easier to mask pieces
-	const Bitboard not_pinned = ~pinned;
+    // Compute pinned pieces and checkers
+    checkers = (attacks<KNIGHT>(our_king, all) & bitboard_of(Them, KNIGHT))
+             | (pawn_attacks<Us>(our_king) & bitboard_of(Them, PAWN));
 
-	switch (sparse_pop_count(checkers)) {
-	case 2:
-		//If there is a double check, the only legal moves are king moves out of check
-		return list;
-	case 1: {
-		//It's a single check!
-		
-		Square checker_square = bsf(checkers);
+    Bitboard candidates = (attacks<ROOK>(our_king, them_bb) & their_orth_sliders)
+                         | (attacks<BISHOP>(our_king, them_bb) & their_diag_sliders);
 
-		switch (board[checker_square]) {
-		case make_piece(Them, PAWN):
-			//If the checker is a pawn, we must check for e.p. moves that can capture it
-			//This evaluates to true if the checking piece is the one which just double pushed
-			if (checkers == shift<relative_dir<Us>(SOUTH)>(SQUARE_BB[history[game_ply].epsq])) {
-				//b1 contains our pawns that can capture the checker e.p.
-				b1 = pawn_attacks<Them>(history[game_ply].epsq) & bitboard_of(Us, PAWN) & not_pinned;
-				while (b1) *list++ = Move(pop_lsb(&b1), history[game_ply].epsq, EN_PASSANT);
-			}
-			[[fallthrough]];
-			//FALL THROUGH INTENTIONAL
-		case make_piece(Them, KNIGHT):
-			//If the checker is either a pawn or a knight, the only legal moves are to capture
-			//the checker. Only non-pinned pieces can capture it
-			b1 = attackers_from<Us>(checker_square, all) & not_pinned;
-			while (b1) *list++ = Move(pop_lsb(&b1), checker_square, CAPTURE);
+    pinned = 0;
+    while (candidates) {
+        Square s = pop_lsb(&candidates);
+        b1 = SQUARES_BETWEEN_BB[our_king][s] & us_bb;
+        if (b1 == 0) {
+            checkers ^= SQUARE_BB[s];
+        } else if ((b1 & (b1 - 1)) == 0) {
+            pinned ^= b1;
+        }
+    }
 
-			return list;
-		default:
-			//We must capture the checking piece
-			capture_mask = checkers;
-			
-			//...or we can block it since it is guaranteed to be a slider
-			quiet_mask = SQUARES_BETWEEN_BB[our_king][checker_square];
-			break;
-		}
+    const Bitboard non_pinned = us_bb & ~pinned;
+    const Bitboard pinned_pieces = us_bb & pinned;
+    const Bitboard all_pieces_bb = all;
 
-		break;
-	}
+    // Switch based on number of checkers
+    switch (sparse_pop_count(checkers)) {
+    case 2:
+        // Double check: Only king moves allowed
+        return list;
 
-	default:
-		//We can capture any enemy piece
-		capture_mask = them_bb;
-		
-		//...and we can play a quiet move to any square which is not occupied
-		quiet_mask = ~all;
+    case 1: {
+        // Single check: Must capture checker or block
+        Square checker_square = bsf(checkers);
+        PieceType checker_type = type_of(at(checker_square));
 
-		if (history[game_ply].epsq != NO_SQUARE) {
-			//b1 contains our pawns that can perform an e.p. capture
-			b2 = pawn_attacks<Them>(history[game_ply].epsq) & bitboard_of(Us, PAWN);
-			b1 = b2 & not_pinned;
-			while (b1) {
-				s = pop_lsb(&b1);
-				
-				//This piece of evil bit-fiddling magic prevents the infamous 'pseudo-pinned' e.p. case,
-				//where the pawn is not directly pinned, but on moving the pawn and capturing the enemy pawn
-				//e.p., a rook or queen attack to the king is revealed
-				
-				/*
-				.nbqkbnr
-				ppp.pppp
-				........
-				r..pP..K
-				........
-				........
-				PPPP.PPP
-				RNBQ.BNR
-				
-				Here, if white plays exd5 e.p., the black rook on a5 attacks the white king on h5 
-				*/
-				
-				if ((sliding_attacks(our_king, all ^ SQUARE_BB[s]
-					^ shift<relative_dir<Us>(SOUTH)>(SQUARE_BB[history[game_ply].epsq]),
-					MASK_RANK[rank_of(our_king)]) &
-					their_orth_sliders) == 0)
-						*list++ = Move(s, history[game_ply].epsq, EN_PASSANT);
-			}
-			
-			//Pinned pawns can only capture e.p. if they are pinned diagonally and the e.p. square is in line with the king 
-			b1 = b2 & pinned & LINE[history[game_ply].epsq][our_king];
-			if (b1) {
-				*list++ = Move(bsf(b1), history[game_ply].epsq, EN_PASSANT);
-			}
-		}
+        Bitboard quiet_mask = 0;
+        if (checker_type == ROOK || checker_type == BISHOP || checker_type == QUEEN) {
+            quiet_mask = SQUARES_BETWEEN_BB[our_king][checker_square];
+        }
 
-		//Only add castling if:
-		//1. The king and the rook have both not moved
-		//2. No piece is attacking between the the rook and the king
-		//3. The king is not in check
-		if (!((history[game_ply].entry & oo_mask<Us>()) | ((all | danger) & oo_blockers_mask<Us>())))
-			*list++ = Us == WHITE ? Move(e1, h1, OO) : Move(e8, h8, OO);
-		if (!((history[game_ply].entry & ooo_mask<Us>()) |
-			((all | (danger & ~ignore_ooo_danger<Us>())) & ooo_blockers_mask<Us>())))
-			*list++ = Us == WHITE ? Move(e1, c1, OOO) : Move(e8, c8, OOO);
+        Bitboard capture_mask = SQUARE_BB[checker_square];
 
-		//For each pinned rook, bishop or queen...
-		b1 = ~(not_pinned | bitboard_of(Us, KNIGHT));
-		while (b1) {
-			s = pop_lsb(&b1);
-			
-			//...only include attacks that are aligned with our king, since pinned pieces
-			//are constrained to move in this direction only
-			b2 = attacks(type_of(board[s]), s, all) & LINE[our_king][s];
-			list = make<QUIET>(s, b2 & quiet_mask, list);
-			list = make<CAPTURE>(s, b2 & capture_mask, list);
-		}
+        // Unpinned pieces
+        {
+            // Knights
+            Bitboard knights = bitboard_of(Us, KNIGHT) & non_pinned;
+            while (knights) {
+                Square from = pop_lsb(&knights);
+                Bitboard moves = attacks<KNIGHT>(from, all_pieces_bb) & capture_mask;
+                list = make<CAPTURE>(from, moves & them_bb, list);
+            }
 
-		//For each pinned pawn...
-		b1 = ~not_pinned & bitboard_of(Us, PAWN);
-		while (b1) {
-			s = pop_lsb(&b1);
+            // Bishops
+            Bitboard bishops = bitboard_of(Us, BISHOP) & non_pinned;
+            while (bishops) {
+                Square from = pop_lsb(&bishops);
+                Bitboard moves = attacks<BISHOP>(from, all_pieces_bb) & (capture_mask | quiet_mask);
+                list = make<CAPTURE>(from, moves & them_bb, list);
+                list = make<QUIET>(from, moves & quiet_mask & ~them_bb, list);
+            }
 
-			if (rank_of(s) == relative_rank<Us>(RANK7)) {
-				//Quiet promotions are impossible since the square in front of the pawn will
-				//either be occupied by the king or the pinner, or doing so would leave our king
-				//in check
-				b2 = pawn_attacks<Us>(s) & capture_mask & LINE[our_king][s];
-				list = make<PROMOTION_CAPTURES>(s, b2, list);
-			}
-			else {
-				b2 = pawn_attacks<Us>(s) & them_bb & LINE[s][our_king];
-				list = make<CAPTURE>(s, b2, list);
-				
-				//Single pawn pushes
-				b2 = shift<relative_dir<Us>(NORTH)>(SQUARE_BB[s]) & ~all & LINE[our_king][s];
-				//Double pawn pushes (only pawns on rank 3/6 are eligible)
-				b3 = shift<relative_dir<Us>(NORTH)>(b2 &
-					MASK_RANK[relative_rank<Us>(RANK3)]) & ~all & LINE[our_king][s];
-				list = make<QUIET>(s, b2, list);
-				list = make<DOUBLE_PUSH>(s, b3, list);
-			}
-		}
-		
-		//Pinned knights cannot move anywhere, so we're done with pinned pieces!
+            // Rooks
+            Bitboard rooks = bitboard_of(Us, ROOK) & non_pinned;
+            while (rooks) {
+                Square from = pop_lsb(&rooks);
+                Bitboard moves = attacks<ROOK>(from, all_pieces_bb) & (capture_mask | quiet_mask);
+                list = make<CAPTURE>(from, moves & them_bb, list);
+                list = make<QUIET>(from, moves & quiet_mask & ~them_bb, list);
+            }
 
-		break;
-	}
+            // Queens
+            Bitboard queens = bitboard_of(Us, QUEEN) & non_pinned;
+            while (queens) {
+                Square from = pop_lsb(&queens);
+                Bitboard moves = attacks<QUEEN>(from, all_pieces_bb) & (capture_mask | quiet_mask);
+                list = make<CAPTURE>(from, moves & them_bb, list);
+                list = make<QUIET>(from, moves & quiet_mask & ~them_bb, list);
+            }
+        }
 
-	//Non-pinned knight moves
-	b1 = bitboard_of(Us, KNIGHT) & not_pinned;
-	while (b1) {
-		s = pop_lsb(&b1);
-		b2 = attacks<KNIGHT>(s, all);
-		list = make<QUIET>(s, b2 & quiet_mask, list);
-		list = make<CAPTURE>(s, b2 & capture_mask, list);
-	}
+        // Pinned pieces
+        {
+            Bitboard pinned_rooks = bitboard_of(Us, ROOK) & pinned_pieces;
+            while (pinned_rooks) {
+                Square from = pop_lsb(&pinned_rooks);
+                if (LINE[our_king][from] & SQUARE_BB[checker_square]) {
+                    Bitboard moves = attacks<ROOK>(from, all_pieces_bb) & capture_mask;
+                    list = make<CAPTURE>(from, moves & them_bb, list);
+                }
+            }
 
-	//Non-pinned bishops and queens
-	b1 = our_diag_sliders & not_pinned;
-	while (b1) {
-		s = pop_lsb(&b1);
-		b2 = attacks<BISHOP>(s, all);
-		list = make<QUIET>(s, b2 & quiet_mask, list);
-		list = make<CAPTURE>(s, b2 & capture_mask, list);
-	}
+            Bitboard pinned_bishops = bitboard_of(Us, BISHOP) & pinned_pieces;
+            while (pinned_bishops) {
+                Square from = pop_lsb(&pinned_bishops);
+                if (LINE[our_king][from] & SQUARE_BB[checker_square]) {
+                    Bitboard moves = attacks<BISHOP>(from, all_pieces_bb) & capture_mask;
+                    list = make<CAPTURE>(from, moves & them_bb, list);
+                }
+            }
 
-	//Non-pinned rooks and queens
-	b1 = our_orth_sliders & not_pinned;
-	while (b1) {
-		s = pop_lsb(&b1);
-		b2 = attacks<ROOK>(s, all);
-		list = make<QUIET>(s, b2 & quiet_mask, list);
-		list = make<CAPTURE>(s, b2 & capture_mask, list);
-	}
+            Bitboard pinned_queens = bitboard_of(Us, QUEEN) & pinned_pieces;
+            while (pinned_queens) {
+                Square from = pop_lsb(&pinned_queens);
+                if (LINE[our_king][from] & SQUARE_BB[checker_square]) {
+                    Bitboard moves = attacks<QUEEN>(from, all_pieces_bb) & capture_mask;
+                    list = make<CAPTURE>(from, moves & them_bb, list);
+                }
+            }
+        }
 
-	//b1 contains non-pinned pawns which are not on the last rank
-	b1 = bitboard_of(Us, PAWN) & not_pinned & ~MASK_RANK[relative_rank<Us>(RANK7)];
-	
-	//Single pawn pushes
-	b2 = shift<relative_dir<Us>(NORTH)>(b1) & ~all;
-	
-	//Double pawn pushes (only pawns on rank 3/6 are eligible)
-	b3 = shift<relative_dir<Us>(NORTH)>(b2 & MASK_RANK[relative_rank<Us>(RANK3)]) & quiet_mask;
-	
-	//We & this with the quiet mask only later, as a non-check-blocking single push does NOT mean that the 
-	//corresponding double push is not blocking check either.
-	b2 &= quiet_mask;
+        return list;
+    }
 
-	while (b2) {
-		s = pop_lsb(&b2);
-		*list++ = Move(s - relative_dir<Us>(NORTH), s, QUIET);
-	}
+    default:
+        // No check: generate all normal moves
+        break;
+    }
 
-	while (b3) {
-		s = pop_lsb(&b3);
-		*list++ = Move(s - relative_dir<Us>(NORTH_NORTH), s, DOUBLE_PUSH);
-	}
+    // ---------------------------
+    // Normal move generation
+    // ---------------------------
 
-	//Pawn captures
-	b2 = shift<relative_dir<Us>(NORTH_WEST)>(b1) & capture_mask;
-	b3 = shift<relative_dir<Us>(NORTH_EAST)>(b1) & capture_mask;
+    {
+        // Knights
+        Bitboard knights = bitboard_of(Us, KNIGHT) & non_pinned;
+        while (knights) {
+            Square from = pop_lsb(&knights);
+            Bitboard moves = attacks<KNIGHT>(from, all_pieces_bb) & ~us_bb;
+            list = make<QUIET>(from, moves & ~them_bb, list);
+            list = make<CAPTURE>(from, moves & them_bb, list);
+        }
 
-	while (b2) {
-		s = pop_lsb(&b2);
-		*list++ = Move(s - relative_dir<Us>(NORTH_WEST), s, CAPTURE);
-	}
+        // Bishops
+        Bitboard bishops = bitboard_of(Us, BISHOP);
+        while (bishops) {
+            Square from = pop_lsb(&bishops);
+            Bitboard mask = (pinned & SQUARE_BB[from]) ? LINE[our_king][from] : ~Bitboard(0);
+            Bitboard moves = attacks<BISHOP>(from, all_pieces_bb) & mask & ~us_bb;
+            list = make<QUIET>(from, moves & ~them_bb, list);
+            list = make<CAPTURE>(from, moves & them_bb, list);
+        }
 
-	while (b3) {
-		s = pop_lsb(&b3);
-		*list++ = Move(s - relative_dir<Us>(NORTH_EAST), s, CAPTURE);
-	}
+        // Rooks
+        Bitboard rooks = bitboard_of(Us, ROOK);
+        while (rooks) {
+            Square from = pop_lsb(&rooks);
+            Bitboard mask = (pinned & SQUARE_BB[from]) ? LINE[our_king][from] : ~Bitboard(0);
+            Bitboard moves = attacks<ROOK>(from, all_pieces_bb) & mask & ~us_bb;
+            list = make<QUIET>(from, moves & ~them_bb, list);
+            list = make<CAPTURE>(from, moves & them_bb, list);
+        }
 
-	//b1 now contains non-pinned pawns which ARE on the last rank (about to promote)
-	b1 = bitboard_of(Us, PAWN) & not_pinned & MASK_RANK[relative_rank<Us>(RANK7)];
-	if (b1) {
-		//Quiet promotions
-		b2 = shift<relative_dir<Us>(NORTH)>(b1) & quiet_mask;
-		while (b2) {
-			s = pop_lsb(&b2);
-			//One move is added for each promotion piece
-			*list++ = Move(s - relative_dir<Us>(NORTH), s, PR_KNIGHT);
-			*list++ = Move(s - relative_dir<Us>(NORTH), s, PR_BISHOP);
-			*list++ = Move(s - relative_dir<Us>(NORTH), s, PR_ROOK);
-			*list++ = Move(s - relative_dir<Us>(NORTH), s, PR_QUEEN);
-		}
+        // Queens
+        Bitboard queens = bitboard_of(Us, QUEEN);
+        while (queens) {
+            Square from = pop_lsb(&queens);
+            Bitboard mask = (pinned & SQUARE_BB[from]) ? LINE[our_king][from] : ~Bitboard(0);
+            Bitboard moves = attacks<QUEEN>(from, all_pieces_bb) & mask & ~us_bb;
+            list = make<QUIET>(from, moves & ~them_bb, list);
+            list = make<CAPTURE>(from, moves & them_bb, list);
+        }
+    }
 
-		//Promotion captures
-		b2 = shift<relative_dir<Us>(NORTH_WEST)>(b1) & capture_mask;
-		b3 = shift<relative_dir<Us>(NORTH_EAST)>(b1) & capture_mask;
-
-		while (b2) {
-			s = pop_lsb(&b2);
-			//One move is added for each promotion piece
-			*list++ = Move(s - relative_dir<Us>(NORTH_WEST), s, PC_KNIGHT);
-			*list++ = Move(s - relative_dir<Us>(NORTH_WEST), s, PC_BISHOP);
-			*list++ = Move(s - relative_dir<Us>(NORTH_WEST), s, PC_ROOK);
-			*list++ = Move(s - relative_dir<Us>(NORTH_WEST), s, PC_QUEEN);
-		}
-
-		while (b3) {
-			s = pop_lsb(&b3);
-			//One move is added for each promotion piece
-			*list++ = Move(s - relative_dir<Us>(NORTH_EAST), s, PC_KNIGHT);
-			*list++ = Move(s - relative_dir<Us>(NORTH_EAST), s, PC_BISHOP);
-			*list++ = Move(s - relative_dir<Us>(NORTH_EAST), s, PC_ROOK);
-			*list++ = Move(s - relative_dir<Us>(NORTH_EAST), s, PC_QUEEN);
-		}
-	}
-
-	return list;
+    return list;
 }
 
 //A convenience class for interfacing with legal moves, rather than using the low-level

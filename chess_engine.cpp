@@ -108,7 +108,9 @@ int main() {
     zobrist::initialise_zobrist_keys();
 
     Position pos;
+    //to change starting position edit DEFAULT_FEN
     Position::set(DEFAULT_FEN, pos);
+    //Position::set("4k3/8/8/8/8/8/8/3QK3 w - - 0 1", pos);
     std::cout << pos;
 
     Color human_side;
@@ -143,6 +145,7 @@ int main() {
 
         if ((pos.turn() == WHITE && is_checkmate_or_stalemate<WHITE>(pos)) ||
             (pos.turn() == BLACK && is_checkmate_or_stalemate<BLACK>(pos))) {
+            std::cout<<"Checkmate or Stalemate.\n";
             break;
         }
 
@@ -176,7 +179,7 @@ int main() {
             std::cout << "Engine is thinking...\n";
             auto start = std::chrono::steady_clock::now();
 
-            Move best = find_best_move_alpha_beta(pos, pos.turn(), 5); // 5-ply search
+            Move best = find_best_move_alpha_beta(pos, pos.turn(), 5);
 
             auto end = std::chrono::steady_clock::now();
             auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -193,9 +196,9 @@ int main() {
             if (i % 2 == 0) std::cout << (i / 2 + 1) << ". ";
             std::cout << move_history[i] << " ";
             if (i % 2 == 1) std::cout << "\n";
-        }
+        }*/
         std::cout << "\n";
-        */
+        
     }
 
     return 0;
